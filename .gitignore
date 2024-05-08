@@ -1,3 +1,11 @@
+# Files
+data-raw/*
+data-clean/*
+/**/*.doc
+/**/*.docx
+/**/*.pdf
+/**/*.pptx
+
 # History files
 .Rhistory
 .Rapp.history
