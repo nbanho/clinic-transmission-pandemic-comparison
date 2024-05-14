@@ -18,7 +18,7 @@ df <- readRDS("data-clean/combined-data-wr.rds")
 df %>%
   ggplot(aes(
     x = factor(year),
-    y = log(dna_copies / sampling_time)
+    y = log1p(dna_copies / sampling_time)
   )) +
   geom_boxplot() +
   facet_wrap(~daytime) +
