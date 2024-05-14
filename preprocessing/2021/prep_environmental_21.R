@@ -155,7 +155,14 @@ df %>%
   geom_line(aes(y = co2, color = "green")) +
   facet_wrap(~date, scales = "free_x")
 
-# save data
 df <- df %>%
-  dplyr::select(date, date_time, room, co2, temperature, humidity)
+  group_by(date, date_time, room) %>%
+  summarise(
+    co2 = mean(co2, na.rm = TRUE),
+    temperature = mean(temperature, na.rm = TRUE),
+    humidity = mean(humidity, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# save data
 saveRDS(df, "data-clean/2021/environmental.rds")

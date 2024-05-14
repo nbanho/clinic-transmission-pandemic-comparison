@@ -1,6 +1,10 @@
 #### Libraries ####
 
 library(tidyverse)
+source("utils/trans_risk.r")
+
+dim_wr <- c(10.55, 5.7, 3)
+vol_wr <- prod(dim_wr)
 
 comb_df <- tibble()
 for (y in c(2019, 2021)) {
@@ -9,7 +13,7 @@ for (y in c(2019, 2021)) {
   # raw data
   path <- paste0("data-clean/", y, "/")
   mol <- readRDS(paste0(path, "molecular.rds"))
-  clin <- readRDS(paste0(path, "clinical.rds"))
+  clin <- readRDS(paste0(path, "clinical-count.rds"))
   env <- readRDS(paste0(path, "environmental.rds"))
   nppl <- readRDS(paste0(path, "tracking-no_of_people.rds"))
   ptime <- readRDS(paste0(path, "tracking-person_time.rds"))
@@ -22,42 +26,59 @@ for (y in c(2019, 2021)) {
     select(-room)
   env <- env %>%
     filter(room == "Waiting room") %>%
-    select(-room)
+    select(-room) %>%
+    mutate(daytime = ifelse(hour(date_time) < 11, "Morning", "Afternoon"))
   nppl <- nppl %>%
-    filter(room == "Waiting room") %>%
-    select(-room)
+    ungroup()
   ptime <- ptime %>%
-    filter(room == "Waiting room") %>%
-    select(-room)
+    arrange(date, hr) %>%
+    pivot_wider(
+      names_from = hr,
+      values_from = pt,
+      names_prefix = "pt_hr"
+    )
 
-  # use maximum CO2 level and number of people in the room
-  # one exception: set NA the #people for November 17 (peak probably missing)
-  # for temperature and humidity, use the mean
-  env <- env %>%
-    group_by(date) %>%
+  # use mean temperature and humidity
+  temp_rH <- env %>%
+    group_by(date, daytime) %>%
     summarise(
-      co2 = max(co2, na.rm = TRUE),
       temperature = mean(temperature, na.rm = TRUE),
       humidity = mean(humidity, na.rm = TRUE)
-    )
-  nppl <- nppl %>%
-    group_by(date) %>%
-    summarise(
-      np = max(n, na.rm = TRUE)
     ) %>%
-    mutate(np = ifelse(date == as.Date("2021-11-17"), NA, np))
+    ungroup()
 
-  # wide format for person time
-  ptime <- ptime %>%
-    pivot_wider(names_from = h, values_from = pt, names_prefix = "pt_h")
+  # compute AER
+  ach <- env %>%
+    dplyr::select(date, daytime, date_time, co2) %>%
+    left_join(
+      nppl,
+      by = c("date", "date_time")
+    ) %>%
+    nest(data = c(date_time, co2, n)) %>%
+    mutate(aer = sapply(data, function(x) {
+      y <- x %>%
+        arrange(date_time) %>%
+        rename(C = co2) %>%
+        mutate(
+          C1 = lead(C),
+          V = vol_wr,
+        ) %>%
+        na.omit()
+      if (nrow(y) <= 60) {
+        return(NA)
+      } else {
+        return(estimate_aer(y))
+      }
+    })) %>%
+    dplyr::select(date, daytime, aer)
 
   #### Combine data ####
 
   # join all data
   df <- full_join(mol, clin, by = c("date", "daytime")) %>%
-    full_join(env, by = "date") %>%
-    full_join(nppl, by = "date") %>%
-    full_join(ptime, by = "date")
+    full_join(ach, by = c("date", "daytime")) %>%
+    full_join(temp_rH, by = c("date", "daytime")) %>%
+    full_join(ptime, by = c("date"))
 
   # filter if all or only clin is not na
   df <- df %>%
@@ -66,7 +87,7 @@ for (y in c(2019, 2021)) {
     ) %>%
     rowwise() %>%
     filter(
-      !all(is.na(c_across(matches("pt_"))), is.na(dna_copies), is.na(co2))
+      !all(is.na(c_across(matches("dna_copies|temperature|humidity|aer|pt_hr"))))
     ) %>%
     ungroup()
 
@@ -82,15 +103,15 @@ for (y in c(2019, 2021)) {
 # minor edits
 comb_df <- comb_df %>%
   mutate(date = as.Date(date)) %>%
-  arrange(year, date) %>%
+  arrange(year, date, daytime) %>%
   select(
     year,
     date,
     daytime,
     dna_copies, sampling_time,
     diagnosed, undiagnosed, uninfectious, registered,
-    co2, temperature, humidity,
-    np, matches("pt_")
+    aer, temperature, humidity,
+    matches("pt_hr")
   ) %>%
   mutate(sampling_time = ifelse(!is.na(sampling_time), sampling_time,
     ifelse(year == 2021, 3, 2)
@@ -104,7 +125,7 @@ comb_df %>%
 no_ppl_21 <- readRDS("data-clean/2021/tracking-no_of_people.rds")
 
 no_ppl_21 %>%
-  ggplot(aes(x = date_time, y = n, color = room)) +
+  ggplot(aes(x = date_time, y = n)) +
   geom_line() +
   facet_wrap(~date, scales = "free_x")
 
@@ -119,7 +140,7 @@ co2_21 %>%
 no_ppl_19 <- readRDS("data-clean/2019/tracking-no_of_people.rds")
 
 no_ppl_19 %>%
-  ggplot(aes(x = date_time, y = n, color = room)) +
+  ggplot(aes(x = date_time, y = n)) +
   geom_line() +
   facet_wrap(~date, scales = "free_x")
 
@@ -128,16 +149,6 @@ comb_df <- comb_df %>%
   filter(
     !(date == "2021-10-15" & daytime == "Afternoon"),
   )
-
-# sum person time from 8am to 11am and from 11am to 2pm
-# ignore person-time of 2-4pm
-comb_df <- comb_df %>%
-  mutate(
-    pt_morning = rowSums(select(., pt_h8, pt_h9, pt_h10)),
-    pt_afternoon = rowSums(select(., pt_h11, pt_h12, pt_h13)),
-    pt = ifelse(daytime == "Morning", pt_morning, pt_afternoon)
-  ) %>%
-  select(-pt_morning, -pt_afternoon, -matches("pt_"))
 
 saveRDS(comb_df, "data-clean/combined-data-wr.rds")
 

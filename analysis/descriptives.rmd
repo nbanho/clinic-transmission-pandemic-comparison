@@ -1,9 +1,188 @@
 ```{r}
 library(tidyverse)
+source("utils/plotting.r")
+source("utils/trans_risk.r")
 ```
 
 ## Data
 
 ```{r}
-df19 <- readRDS("data-clean/2019/combined-data.rds")
+df <- readRDS("data-clean/combined-data-wr.rds")
+```
+
+## Descriptives
+
+### Molecular
+
+```{r}
+df %>%
+  ggplot(aes(
+    x = factor(year),
+    y = log(dna_copies / sampling_time)
+  )) +
+  geom_boxplot() +
+  facet_wrap(~daytime) +
+  geom_jitter(width = .1, height = 0, alpha = .5) +
+  theme_custom()
+```
+
+```{r}
+df %>%
+  dplyr::select(year, date, daytime, dna_copies) %>%
+  pivot_wider(
+    names_from = daytime,
+    values_from = dna_copies
+  ) %>%
+  mutate(across(
+    c(Morning, Afternoon), log1p
+  )) %>%
+  dplyr::select(-year, -date) %>%
+  ggpairs()
+```
+
+### Environmental
+
+```{r}
+df %>%
+  ggplot(aes(
+    x = factor(year),
+    y = aer
+  )) +
+  geom_boxplot() +
+  facet_wrap(~daytime) +
+  geom_jitter(width = .1, height = 0, alpha = .5) +
+  theme_custom()
+
+df %>%
+  group_by(year) %>%
+  summarise(
+    mean_aer = mean(aer, na.rm = TRUE),
+    q25 = quantile(aer, .25, na.rm = TRUE),
+    q75 = quantile(aer, .75, na.rm = TRUE)
+  )
+
+df %>%
+  ggplot(aes(
+    x = factor(year),
+    y = humidity
+  )) +
+  geom_boxplot() +
+  facet_wrap(~daytime) +
+  geom_jitter(width = .1, height = 0, alpha = .5) +
+  theme_custom()
+
+df %>%
+  group_by(year) %>%
+  summarise(
+    mean_rh = mean(humidity, na.rm = TRUE),
+    q25 = quantile(humidity, .25, na.rm = TRUE),
+    q75 = quantile(humidity, .75, na.rm = TRUE)
+  )
+```
+
+```{r}
+df %>%
+  dplyr::select(year, date, daytime, aer) %>%
+  pivot_wider(
+    names_from = daytime,
+    values_from = aer
+  ) %>%
+  dplyr::select(Morning, Afternoon) %>%
+  ggpairs()
+```
+
+### Tracking
+
+```{r}
+df %>%
+  dplyr::select(year, date, matches("pt_hr")) %>%
+  pivot_longer(
+    cols = -c(year, date),
+    names_to = "daytime",
+    values_to = "pt"
+  ) %>%
+  mutate(
+    daytime = gsub("pt_hr", "", daytime),
+    daytime = as.numeric(daytime),
+    daytime = ifelse(daytime <= 11, "Morning", "Afternoon"),
+    daytime = factor(daytime, levels = c("Morning", "Afternoon"))
+  ) %>%
+  group_by(year, date, daytime) %>%
+  summarise(
+    pt = sum(pt)
+  ) %>%
+  ungroup() %>%
+  ggplot(aes(
+    x = factor(year),
+    y = pt
+  )) +
+  geom_boxplot() +
+  facet_wrap(~daytime) +
+  geom_jitter(width = .1, height = 0, alpha = .5) +
+  theme_custom()
+```
+
+### Clinical
+
+```{r}
+df %>%
+  ggplot(aes(
+    x = diagnosed
+  )) +
+  geom_histogram() +
+  facet_grid(year ~ daytime) +
+  theme_custom()
+
+df %>%
+  ggplot(aes(
+    x = registered
+  )) +
+  geom_histogram() +
+  facet_grid(year ~ daytime) +
+  theme_custom()
+
+df %>%
+  ggplot(aes(
+    x = factor(year),
+    y = diagnosed / registered,
+  )) +
+  geom_boxplot() +
+  facet_wrap(~daytime) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_custom()
+
+df %>%
+  mutate(
+    pt = ifelse(daytime == "Morning",
+      pt_hr8 + pt_hr9 + pt_hr10 + pt_hr11,
+      pt_hr12 + pt_hr13 + pt_hr14 + pt_hr15
+    ),
+    ipt = diagnosed / registered * pt
+  ) %>%
+  dplyr::select(year, date, daytime, ipt) %>%
+  ggplot(aes(
+    x = factor(year),
+    y = ipt
+  )) +
+  geom_boxplot() +
+  facet_wrap(~daytime) +
+  theme_custom()
+```
+
+```{r}
+df %>%
+  mutate(
+    pt = ifelse(daytime == "Morning",
+      pt_hr8 + pt_hr9 + pt_hr10 + pt_hr11,
+      pt_hr12 + pt_hr13 + pt_hr14 + pt_hr15
+    ),
+    ipt = diagnosed / registered * pt
+  ) %>%
+  dplyr::select(date, daytime, ipt) %>%
+  pivot_wider(
+    names_from = daytime,
+    values_from = ipt
+  ) %>%
+  dplyr::select(Morning, Afternoon) %>%
+  ggpairs()
 ```

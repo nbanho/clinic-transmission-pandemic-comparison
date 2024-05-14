@@ -26,7 +26,14 @@ df <- read_dta("data-raw/2019/environmental/CleanCo2data.dta") %>%
     ),
     date_time = round_date(as.POSIXct(paste(date, format(time, format = "%H:%M:%S"))))
   ) %>%
-  dplyr::select(date, room, date_time, co2, temperature, humidity)
+  dplyr::select(date, room, date_time, co2, temperature, humidity) %>%
+  group_by(date, date_time, room) %>%
+  summarise(
+    co2 = mean(co2, na.rm = TRUE),
+    temperature = mean(temperature, na.rm = TRUE),
+    humidity = mean(humidity, na.rm = TRUE)
+  ) %>%
+  ungroup()
 
 
 #### Filter ####

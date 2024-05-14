@@ -97,11 +97,13 @@ clinical %>%
   arrange(patient_id, date) %>%
   View()
 
+saveRDS(clinical, "data-clean/2021/clinical.rds")
+
 #### Summarize ####
 
-# count number of patients
+# count number of patients by daytime filtered by Mtb sampling
 clin_count <- clinical %>%
-  filter(between(hour(date_time), 8, 14)) %>%
+  filter(between(hour(date_time), 8, 15)) %>%
   mutate(daytime = ifelse(hour(date_time) < 11, "Morning", "Afternoon")) %>%
   group_by(date, daytime) %>%
   summarise(
@@ -129,4 +131,4 @@ clin_count %>% filter(
 )
 
 # save data
-saveRDS(clin_count, "data-clean/2021/clinical.rds")
+saveRDS(clin_count, "data-clean/2021/clinical-count.rds")

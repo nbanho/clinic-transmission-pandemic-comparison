@@ -2,8 +2,17 @@
 
 library(tidyverse)
 library(lubridate)
-library(imputeTS)
+library(zoo)
 
+lin_imp <- function(x, mg = 600) {
+  na.locf(
+    na.locf(
+      na.approx(x, maxgap = mg, na.rm = FALSE),
+      maxgap = mg, na.rm = FALSE
+    ),
+    fromLast = TRUE, maxgap = mg, na.rm = FALSE
+  )
+}
 
 #### Data ####
 
@@ -19,65 +28,49 @@ tracking_data <- do.call(
 ) %>%
   rename(date_time = time) %>%
   mutate(date = as.Date(date_time)) %>%
-  filter(between(hour(date_time), 8, 15))
+  filter(
+    is_waitingroom,
+    between(hour(date_time), 8, 15)
+  )
 
 #### No. of people ####
 
 no_ppl <- data.frame(date = unique(tracking_data$date))
-no_ppl$counts <- lapply(no_ppl$date, function(d) {
+no_ppl$date_time <- lapply(no_ppl$date, function(d) {
   ts <- as.POSIXct(paste(d, "08:00:00"))
   te <- as.POSIXct(paste(d, "16:00:00"))
-  t <- seq(ts, te, by = "1 min")
-  cn <- data.frame(date_time = t)
-  cn$wr <- unlist(parallel::mclapply(cn$date_time, function(dt) {
-    sub <- tracking_data %>%
-      filter(between(date_time, dt, dt + minutes(1))) %>%
-      filter(is_waitingroom)
-    return(n_distinct(sub$obs_id))
-  }, mc.cores = 6))
-  cn$cr <- unlist(parallel::mclapply(cn$date_time, function(dt) {
-    sub <- tracking_data %>%
-      filter(between(date_time, dt, dt + minutes(1))) %>%
-      filter(is_passage)
-    return(n_distinct(sub$obs_id))
-  }, mc.cores = 6))
-  return(cn)
+  t <- seq(ts, te, by = "1 sec")
+  return(t)
 })
-
+no_ppl <- unnest(no_ppl, date_time)
 no_ppl <- no_ppl %>%
-  unnest(counts) %>%
-  reshape2::melt(c("date", "date_time")) %>%
-  rename(room = variable, n = value) %>%
-  mutate(room = ifelse(room == "wr", "Waiting room", "Corridor"))
+  left_join(
+    tracking_data %>%
+      dplyr::select(date_time, obs_id),
+    by = "date_time"
+  ) %>%
+  group_by(date, date_time) %>%
+  summarise(
+    n = ifelse(all(is.na(obs_id)), NA, n_distinct(obs_id, na.rm = TRUE))
+  ) %>%
+  ungroup()
+
+no_ppl_min <- no_ppl %>%
+  mutate(date_time = round_date(date_time, "minute")) %>%
+  group_by(date, date_time) %>%
+  summarise(
+    n = ifelse(all(is.na(n)), NA, mean(n, na.rm = TRUE))
+  ) %>%
+  ungroup()
 
 # plot no of people
-no_ppl %>%
-  ggplot(aes(x = date_time, y = n, color = room)) +
+no_ppl_min %>%
+  ggplot(aes(x = date_time, y = n)) +
   geom_line() +
   facet_wrap(~date, scales = "free_x")
 
-# remove trailing and leading zeros
-remove_zeros <- function(df) {
-  n <- df$n
-  if (all(n == 0)) {
-    return(df)
-  } else {
-    first_non_zero <- which(n != 0)[1]
-    last_non_zero <- length(n) - which(rev(n) != 0)[1] + 1
-    df <- df[first_non_zero:last_non_zero, ]
-    return(df)
-  }
-}
-
-no_ppl_filt <- no_ppl %>%
-  group_by(date, room) %>%
-  arrange(date_time) %>%
-  nest(data = c(date_time, n)) %>%
-  mutate(data = map(data, remove_zeros)) %>%
-  unnest(data)
-
 # strict daytime filter
-no_ppl_filt <- no_ppl_filt %>%
+no_ppl_min_filt <- no_ppl_min %>%
   filter(
     !(date == "2021-10-14" & hour(date_time) < 11),
     !(date == "2021-10-15" & hour(date_time) >= 11),
@@ -86,43 +79,56 @@ no_ppl_filt <- no_ppl_filt %>%
     !(date == "2021-11-17" & hour(date_time) < 11)
   )
 
-no_ppl_filt %>%
-  ggplot(aes(x = date_time, y = n, color = room)) +
+no_ppl_min_filt %>%
+  ggplot(aes(x = date_time, y = n)) +
+  geom_line() +
+  facet_wrap(~date, scales = "free_x")
+
+# imputation
+no_ppl_min_filt <- no_ppl_min_filt %>%
+  group_by(date) %>%
+  mutate(n = lin_imp(n, mg = 40)) %>%
+  ungroup()
+
+no_ppl_min_filt %>%
+  ggplot(aes(x = date_time, y = n)) +
   geom_line() +
   facet_wrap(~date, scales = "free_x")
 
 # save
-saveRDS(no_ppl_filt, "data-clean/2021/tracking-no_of_people.rds")
+saveRDS(no_ppl_min_filt, "data-clean/2021/tracking-no_of_people.rds")
 
 #### Person-time ####
 
-# compute person-time
-pers_time <- tracking_data %>%
-  filter(is_waitingroom | is_passage) %>%
-  mutate(
-    room = ifelse(is_waitingroom, "Waiting room", "Corridor"),
-    h = hour(date_time)
+# imputation
+no_ppl_imp <- no_ppl %>%
+  filter(
+    !(date == "2021-10-14" & hour(date_time) < 11),
+    !(date == "2021-10-15" & hour(date_time) >= 11),
+    !(date == "2021-11-10" & hour(date_time) < 11),
+    !(date == "2021-11-11" & hour(date_time) >= 11),
+    !(date == "2021-11-17" & hour(date_time) < 11)
   ) %>%
-  group_by(date, room, h, obs_id) %>%
-  summarise(
-    start_time = min(date_time),
-    end_time = max(date_time)
-  ) %>%
-  mutate(pt = as.numeric(
-    difftime(end_time, start_time, units = "hours")
-  )) %>%
-  group_by(date, h, room) %>%
-  summarise(
-    pt = sum(pt)
-  ) %>%
+  mutate(hr = hour(date_time)) %>%
+  group_by(date, hr) %>%
+  arrange(date_time) %>%
+  mutate(n = lin_imp(n, mg = 40 * 60)) %>%
   ungroup()
 
-# plot
-pers_time %>%
-  filter(room == "Waiting room") %>%
-  ggplot(aes(x = h, y = pt)) +
-  geom_bar(stat = "identity", position = position_dodge()) +
-  facet_wrap(~date)
+# plot no of people
+no_ppl_imp %>%
+  ggplot(aes(x = date_time, y = n)) +
+  geom_line() +
+  facet_wrap(~date, scales = "free_x")
+
+# compute person-time by daytime filtered by Mtb sampling
+pers_time <- no_ppl_imp %>%
+  group_by(date, hr) %>%
+  summarise(
+    pt = sum(n) / 3600
+  ) %>%
+  ungroup() %>%
+  filter(between(hr, 8, 15))
 
 # save
 saveRDS(pers_time, "data-clean/2021/tracking-person_time.rds")
