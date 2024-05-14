@@ -75,10 +75,10 @@
 This document describes the proposed presentation and analysis for the main paper(s) reporting results from a study estimating and comparing the transmission of \emph{Mycobacterium tuberculosis (\emph{Mtb})} in a primary care clinic in Cape Town (South Africa) before and during the COVID-19 pandemic. Various infection control measures were introduced during the COVID-19 pandemic, including restricted patient flows, general mask-wearing, and improved ventilation. To assess the effects of these measures, the following data were collected during both study periods:
 
 \begin{enumerate}
-    \item \textbf{Molecular data}: Bioaerosol samples to detect respiratory infectious particles in the air, particularly \emph{Mtb} particles.
-    \item \textbf{Clinical data}: Number of registered patients, presumptive TB cases, and diagnosed TB patients. 
-    \item \textbf{Environmental data}: CO$_2$, relative humidity, and temperature.
-    \item \textbf{Patient tracking}: Patient movements in the waiting and tuberculosis (TB) room of the clinic, to monitor person-time in the clinic.
+    \item \textbf{Molecular data}: Concentration of \emph{Mtb} genomes in bioaerosol samples.
+    \item \textbf{Clinical data}: Number of registered and diagnosed TB patients. 
+    \item \textbf{Environmental data}: CO$_2$ and relative humidity.
+    \item \textbf{Patient tracking}: Tracking data to monitor person-time in the clinic.
 \end{enumerate}
  
 Any deviations from the statistical analysis plan will be described and justified in the final report. The analysis will be carried out by identified, appropriately qualified and experienced statisticians, who will ensure the integrity of the data during their processing. 
@@ -89,8 +89,8 @@ In a previous study, we estimated the risk of \emph{Mtb} transmission in a prima
 
 \begin{itemize}
     \item \textbf{Restricted patient flows}: Patients received fixed appointments to avoid crowding and reduce waiting times at the clinic.  They were asked to arrive at the earliest one hour before the appointment, otherwise, they were asked to wait outside the clinic. In addition, clinical attendees with respiratory symptoms were tested outside the clinic before entering.
-    \item \textbf{Mask-wearing}: Compulsory mask-wearing for all clinical attendees and staff members, except young children.
-    \item \textbf{Active ventilation}: Opening of all windows and doors in the clinic throughout the day, to actively increase natural ventilation.
+    \item \textbf{Mask-wearing}: Compulsory mask-wearing for all clinic attendees and staff members, except young children.
+    \item \textbf{Active ventilation}: Opening of all windows and doors throughout the day to promote natural ventilation.
 \end{itemize}
 
 
@@ -100,7 +100,7 @@ The primary objective of the study is to assess and compare the risk of \emph{Mt
 
 \subsection{Primary outcome}
 
-The concentration of \emph{Mtb} genomes in bioaerosol samples expressed as DNA copies per microliter per hour of sampling.  
+The concentration of \emph{Mtb} genomes in bioaerosol samples expressed as the number of DNA copies per microliter per hour of sampling.  
 
 
 \subsection{Secondary outcomes}
@@ -108,7 +108,7 @@ The concentration of \emph{Mtb} genomes in bioaerosol samples expressed as DNA c
 \begin{enumerate}
     \item Proportion of diagnosed TB patients among registered patients.
     \item Proportion of presumptive TB patients among registered patients.
-    \item Ventilation or outdoor air change rate (computed from indoor CO$_2$ levels and room occupancy).
+    \item Outdoor air change rate (computed from indoor CO$_2$ levels and room occupancy).
     \item Person-time in the clinic. 
 \end{enumerate}
 
@@ -118,7 +118,7 @@ The concentration of \emph{Mtb} genomes in bioaerosol samples expressed as DNA c
     \item Molecular data (daily)
     \begin{enumerate}
         \item Number of \emph{Mtb} genomes in bioaerosol samples (DNA copies per microliters per hour of sampling)
-        \item Number of other detected respiratory infectious particles in the air (copies per microliters), including SARS-CoV-2 and influenza. 
+        % \item Number of other detected respiratory infectious particles in the air (copies per microliters), including SARS-CoV-2 and influenza. 
     \end{enumerate}
     \item Clinical data (daily)
     \begin{enumerate}
@@ -129,11 +129,12 @@ The concentration of \emph{Mtb} genomes in bioaerosol samples expressed as DNA c
     \item Environmental data (daily by minute)
     \begin{enumerate}
         \item CO$_2$ (parts per million [ppm]).
-        \item Relative humidity (\%) and temperature (°C).
+        \item Relative humidity (\%).
+        \item Temperature (°C).
     \end{enumerate}
     \item Patient tracking data (daily by second)
     \begin{enumerate}
-        \item Time and location of people in the clinic (observation ID, timestamp, x- and y-coordinates of the location).
+        \item Time and location of people in the clinic (observation ID, timestamp, x- and y-coordinates).
     \end{enumerate}
     \item Building data
     \begin{enumerate}
@@ -151,139 +152,150 @@ The null hypothesis will be that there is no true difference in the outcomes bet
 
 \subsection{Research hypotheses}
 
-Our hypothesized links between pandemic-related infection control measures and the concentration of \emph{Mtb} in bioaerosol samples are illustrated with a direct acyclic graph (DAG) model (\Cref{fig:dag}). In the following, we develop our research hypotheses about the effects of infection control measures on the number of \emph{Mtb} DNA copies per microliter per hour of sampling time. 
+Our hypothesized links between pandemic-related infection control measures and the concentration of \emph{Mtb} in bioaerosol samples are illustrated with a direct acyclic graph (DAG) model (\Cref{fig:dag}). In the following, we develop our research hypotheses about the effects of infection control measures. 
 
-First, the number of \emph{Mtb}-containing particles in the air depends on the generation of infectious particles. The total amount of particles generated depends on the person-time of infectious people in the clinic. Person-time in the clinic was aimed to be reduced by restricted patient flows. Therefore, this intervention should reduce the generated amount of infectious particles by clinical attendees. \medskip
+First, the number of \emph{Mtb}-containing particles in the air depends on the generation of infectious particles. The total amount of particles generated depends on the person-time of infectious people in the clinic. Person-time in the clinic was aimed to be reduced by restricted patient flows. Therefore, this intervention should reduce the generated amount of infectious particles by clinic attendees. \medskip
 
-\forceindent \textbf{Hypothesis 1}: Restricted patient flows decreased the number of \emph{Mtb} DNA copies per microliter per hour of sampling time. \medskip
+\forceindent \textbf{Hypothesis 1}: Restricted patient flows reduced the concentration of \emph{Mtb} in bioaerosol samples. \medskip
 
+In addition to reducing the number of inhaled particles from the air, mask-wearing reduces the number of infectious particles exhaled into the air. \medskip
 
-Mask-wearing reduces the number of infectious particles exhaled into the air (and may also reduce the number of inhaled particles from the air). \medskip
+\forceindent \textbf{Hypothesis 2}: Mask-wearing reduced the concentration of \emph{Mtb} in bioaerosol samples. \medskip
 
-\forceindent \textbf{Hypothesis 1}: Mask-wearing decreased the number of \emph{Mtb} DNA copies per microliter per hour of sampling time. \medskip
+Second, the detection of \emph{Mtb} in bioaerosols depends on the survival of \emph{Mtb} over time, which depends on multiple environmental factors such as airflow, ventilation, CO$_2$, humidity, and UV radiation \cite{Wang2021Science,Morawska2021,Haddrell2024NatCommun}. More active natural ventilation should accelerate the removal of infectious particles from the indoor air. \medskip
 
-Second, the detection of \emph{Mtb} in bioaerosols depends on the survival of \emph{Mtb} over time, which depends on multiple environmental factors such as airflow, ventilation, humidity, and UV radiation \cite{Wang2021Science}. More active natural ventilation should accelerate the removal of infectious particles from the indoor air. \medskip
+\forceindent \textbf{Hypothesis 3}: Active natural ventilation reduced the concentration of \emph{Mtb} in bioaerosol samples. \medskip
 
-\forceindent \textbf{Hypothesis 1}: Active natural ventilation decreased the number of \emph{Mtb} DNA copies per microliter per hour of sampling time. \medskip
-
-Ventilation may also affect other variables such as humidity, but the net effect on the generation and survival of infectious particles in the air is unclear \cite{Wang2021Science}. We, therefore, do not develop a hypothesis for the effect of ventilation via humidity on the number of \emph{Mtb} DNA copies per microliter per hour of sampling time. Nevertheless, we will adjust for a potential effect during analysis.
+Ventilation may also affect other variables such as humidity, but the net effect on the generation and survival of infectious particles in the air is unclear \cite{Wang2021Science}. We, therefore, do not develop a hypothesis for the effect of ventilation via humidity on the concentration of \emph{Mtb} in bioaerosol samples. Nevertheless, we will adjust for a potential effect of relative humidity during analysis.
 
 Our hypothesized effects are subject to potential unmeasured confounding and measurement error: 
 
 \begin{itemize}
-    \item The person-time of infectious people in the clinic is unknown. We estimate this latent variable during modeling, considering the number of diagnosed TB patients and by making assumptions on the unknown number of undiagnosed TB patients. 
+    \item Undiagnosed (subclinical) TB-infected patients also attend the clinic, may be infectious, and generate infectious \emph{Mtb} particles \cite{Patterson2021Tuberculosis}. 
     \item It is possible that \emph{Mtb} transmission was lower during the COVID-19 pandemic (e.g. due to social distancing measures). However, it seems more likely that TB was under-diagnosed during the COVID-19 pandemic due to fewer people visiting the clinic \cite{Soko2021EID,Pillay2021SAMJ,Uwishema2022DMPHP}. People afraid of getting infected may have postponed their regular clinical visits, resulting in a smaller total number of clinical visits during the COVID-19 pandemic. We, therefore, adjust the effect of restricted patient flows on the person-time in the clinic for the daily number of registered patients.
-    \item The generation of infectious particles depends also on the individual infectiousness of infected people. More infectious individuals may generate more infectious particles per minute. The individual infectiousness of diagnosed TB patients is unknown.
+    \item The generation of infectious particles depends also on the individual infectiousness of infected people \cite{Escombe2008PLoSMed}. More infectious individuals may generate more infectious particles per minute. The individual infectiousness of diagnosed TB patients is unknown.
 	The removal of infectious particles depends not only on ventilation and humidity but also other, unmeasured environmental factors. For example, airflows may trap infectious particles in certain locations of the clinic \cite{Wang2021Science}. Spatial variation in the concentration of infectious particles may introduce small measurement errors due to the fixed location of the bioaerosol sampling devices in each room of the clinic, yet the placement of the bioaerosol sampling devices was the same in both study years.
     \item The two studies that we compared were conducted between slightly different time periods, i.e. July to late August (before the pandemic) vs October to early November (during the pandemic), which possibly introduces seasonal effects. However, the weather conditions were comparable (only 1-2 months difference) and the infection control measures were maintained during the pandemic independent of the season.
 \end{itemize}
 
 \begin{figure}[!htpb]
     \centering
-    \caption{Directed acyclic graph (DAG) model showing the causal pathways from pandemic-related infection control measures (interventions) to the number of \emph{Mtb} DNA copies per microliter per hour of sampling time (measured outcome), which is a proxy for the risk of infection (unmeasured outcome) in the clinic.}
+    \caption{Directed acyclic graph (DAG) model showing the causal pathways from pandemic-related infection control measures (interventions) to the number of \emph{Mtb} DNA copies per microliter per hour of sampling time (measured outcome), which is a proxy for the risk of infection (unmeasured outcome) in the clinic. Green-circled letters $a$ denote effects of individual interventions on the mediators and blue-circled letters $b$ denote effects of mediators on the outcome.}
     \label{fig:dag}
     \includegraphics[width=.8\linewidth]{dag.pdf}
 \end{figure}
 	
 \section{Study populations}
 
-The target population includes all clinical attendees of the primary care clinic in South Africa between July and August 2019 (before the COVID-19 pandemic) and between October and November 2021. The primary outcome is the number of \emph{Mtb} DNA copies per microliter per hour of sampling time. The sampling time was 2h in 2019 and 3h in 2021. Samples were collected twice per day, unless the clinic was closed in the morning or afternoon, corresponding to 4h and 6h of sampling, respectively. By daytime, we have 39 observations for the primary outcome in 2019 and 34 in 2021. Since we aggregate the outcome on a daily basis, we end up with 21 observations for the primary outcome in the 2019 and 19 observations in the 2021. Considering secondary and missing outcomes, we have data for 21 study days in 2019 and 28 days in 2021. 
+The target population includes all clinic attendees of the primary care clinic in South Africa between July and August 2019 (before the COVID-19 pandemic) and between October and November 2021. The primary outcome is the number of \emph{Mtb} DNA copies per microliter per hour of sampling time. The sampling time was 2h in 2019 and 3h in 2021. Samples were collected twice per day, once in the morning and once in the afternoon, unless the clinic was temporarily closed. We have 39 observations (21 study days) in 2019 and 34 observations (19 study days) in 2021 when excluding observations where the primary outcome is missing. Considering also observations with missing primary outcome, we have 41 observations in 2019 and 55 observations in 2021, corresponding to 21 and 28 study days, respectively. 
 
 \section{Statistical analyses}
 
 \subsection{Comparative analysis}
 
-We will employ descriptive statistics to summarize molecular, environmental, and patient tracking data. Categorical variables will be presented with the absolute number and as percentages. Continuous variables will be reported as the median and interquartile range (IQR) or mean and standard deviation (SD). We will create summary tables to describe all variables from molecular, environmental, and patient tracking data. We will create figures (box-, bar- and line plots) to compare the daily number of respiratory infectious particles in the air, time-varying indoor CO$_2$ levels, and the time-varying number of people in the clinic.
+We will employ descriptive statistics to summarize molecular, environmental, and patient tracking data. Categorical variables will be presented with the absolute number and as percentages. Continuous variables will be reported as the median and interquartile range (IQR) or mean and standard deviation (SD). We will create summary tables to describe all variables from molecular, environmental, and patient tracking data. We will create boxplots to compare the number of \emph{Mtb} DNA copies per microliter in airborne samples, the number of diagnosed and registered patients attending the clinic, the number of person-time spent in the clinic, ventilation rates as computed from time-varying indoor CO$_2$ levels and room occupancy, and relative humidity.
 
 \subsection{Primary analysis}
 
-Based on the DAG model (\cref{fig:dag}), we will use Bayesian linear regression models and mediation analysis to estimate the direct and indirect effects of the pandemic-related infection control measures $I$ on the log number of \emph{Mtb} DNA copies per microliter per hour of sampling time in the waiting room of the clinic $Y$. 
+Based on the DAG model (\cref{fig:dag}), we will use Bayesian linear regression models and mediation analysis to estimate the direct and indirect effects of the pandemic-related infection control measures $I$ (binary variable for the study year 2021 vs 2019) on the log number of \emph{Mtb} DNA copies per microliter per hour of sampling time in the waiting room of the clinic $Y$ by daytime (morning and afternoon). 
 
 \subsubsection*{Direct effect of pandemic-related infection control measures}
 
 The direct effect of $I$ on $Y$ will be estimated with a Gaussian linear regression model
 \begin{align*}
     Y | \beta_0, \beta_1, \beta_2, \beta_3 &\sim \text{Normal}^{+}(\mu, \sigma) \\
-    \mu &= \beta_0 + \beta_1 \cdot I + \beta_2 \cdot N^R \\
-    \beta_0 &\sim \text{Student-t}_5(\mu_y, 2.5s_{y}) \\
-    \beta_1, \beta_2 &\sim \text{Student-t}_5\left(0, 2.5\frac{s_{y}}{s_{x}}\right) \\
+    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot I + \beta_3 \cdot N \\
+    \beta_0 &\sim \text{Student-t}_5\left(\mu_y, 2.5s_{y}\right) \\
+    \beta_1^{[D]} &\sim \text{Normal}(0, \tau) \\
+    \tau &\sim \text{Student-t}_5^{+}(0, 1) \\
+    \beta_2 &\sim \text{Student-t}_5\left(0, 2.5\right) \\
+    \beta_3 &\sim \text{Student-t}_5\left(0, 2.5\cdot \frac{s_{y}}{s_{N}}\right) \\
     \sigma &\sim \text{Exponential}\left(\frac{1}{s_{y}}\right),
 \end{align*}
-where $\text{Normal}^{+}$ is a normal distribution truncated at $0$, Student-t$_5$ is a Student-t distribution with 5 degrees of freedom, $\mu_{y}$ and $s_{y}$ are the empirical mean and standard deviation of the outcome, and $s_x$ is the empirical standard deviation of each input variable. The effect of $I$ is adjusted for the number of registered patients $N^R$, to consider the effects of general pandemic restrictions on the number of clinical visits during the COVID-19 pandemic. 
+where $\beta_0 + \beta_1^{[D]}$ is a day-specific varying intercept (non-centered parametrization) to consider intraday correlation, $\beta_2$ is the effect of $I$ (differences between study years), and $\beta_3$ is the effect of $N$ to adjust for the general impact of the pandemic situation on the number of clinic visits during the COVID-19 pandemic. $\text{Student-t}_{5}^{+}$ is a Student-t with 5 degrees of freedom, truncated at zero, $\mu_{y}$ and $s_{y}$ are the empirical mean and standard deviation of the outcome, and $s_N$ is the empirical standard deviations of the number of registered patients $N$. 
 
 Here and in the following, we will use weakly informative priors for all modeling parameters following recommendations on the choice of priors \cite{Gelman2008AAS,Gelman2008StatMed,Gelman2020RegOther,Stan2022,Gabry2023Priors}, unless stated otherwise. All priors represent our default but not definitive choices, and changes in the context of the data will be applied if necessary.
 
 \subsubsection*{Indirect effects of pandemic-related infection control measures}
 
-We assume that mask-wearing $I_2$ can affect $Y$ only  directly, whereas restricted patient flows $I_1$ and active ventilation $I_3$ can affect the outcome only indirectly via the (infectious) person-time in the clinical $PT$ ($IPT$), the ventilation rate $ACH$, and relative humidity $RH$. The total indirect (mediated) effect of each intervention will be estimated using the product-of-coefficients method.
+We assume that mask-wearing $I_2$ affects $Y$ directly, whereas restricted patient flows $I_1$ and active ventilation $I_3$ affect the outcome indirectly via the (infectious) person-time in the clinic $PT$ ($IPT$), the ventilation rate $AER$, and relative humidity $RH$. The total indirect (mediated) effect of each intervention will be estimated using the product-of-coefficients method.
 
 The indirect effect of $I_1$ on $Y$ is 
 \begin{align*}
-    \beta_1^1 = a_1 \cdot a_2 \cdot b_1 + a_1 \cdot a_3 \cdot b_3,
+    \beta_1^1 = a_1 \cdot b_1,
 \end{align*}
-where $a_1$ is the effect of $I_1$ on $PT$ (adjusted for $N^R$), $a_2$ is the proportion of $PT$ that is $IPT$, and $b_1$ is the effect of $IPT$ on $Y$ (adjusted for $I_2$, $ACH$, and $RH$), $a_3$ is the effect of $IPT$ on $ACH$, and $b_3$ is the effect of $ACH$ on $Y$ (adjusted for $IPT$, $I_2$, and $RH$). 
+where $a_1$ is the effect of $I_1$ on $PT$ (adjusted for $N$) and $b_1$ is the effect of $IPT$ on $Y$ (adjusted for $I_2$, $AER$, and $RH$). 
 
 The direct effect of $I_2$ on $Y$ is
 \begin{align*}
     \beta_1^2 = b_2,
 \end{align*}
-adjusted for $IPT$, $ACH$, and $RH$.
+adjusted for $IPT$, $AER$, and $RH$.
 
 The indirect effect of $I_3$ on $Y$ is
 \begin{align*}
-    \beta_1^3 = a_4 \cdot b_3 + a_5 \cdot b_4,
+    \beta_1^3 = a_2 \cdot b_3 + a_3 \cdot b_4,
 \end{align*}
-where $a_4$ is the effect of $I_3$ on $ACH$ (adjusted for $PT$), $b_3$ is the effect of $ACH$ on $Y$ (adjusted for $PT$, $I_2$, and $RH)$, $a_5$ is the effect of $I_3$ on $ACH$, and $b_5$ is the effect of $RH$ on $Y$ (adjusted for $PT$, $I_2$, and $RH$).
+where $a_2$ is the effect of $I_3$ on $AER$, $b_3$ is the effect of $AER$ on $Y$ (adjusted for $IPT$, $I_2$, and $RH)$, $a_3$ is the effect of $I_3$ on $RH$, and $b_4$ is the effect of $RH$ on $Y$ (adjusted for $IPT$, $I_2$, and $AER$).
 
-$IPT$ is the proportion of total person-time in the clinic $PT$ that is contributed by infectious individuals and will be estimated as follows. The proportion is computed as the sum of the proportion $P^D$ of diagnosed TB patients $N^D$ and the proportion $P^U$ of undiagnosed TB patients $N^U$ among all registered patients $N^R$. We will make assumptions about the unknown proportion $P^D$ and model it with a prior. $ACH$ will be computed from indoor CO$_2$ levels and the number of people in the clinic. All variables will be computed or summarized by daytime. $RH$ will be summarized with the mean. 
+$IPT$ is the proportion of total person-time in the clinic $PT$ that is contributed by diagnosed TB patients, which are considered infectious, and is computed as the proportion diagnosed TB patients among all registered patients times the person-time in the clinic $PT$. $AER$ will be computed from time-varying indoor CO$_2$ levels and the number of people in the clinic. All variables will be computed or summarized by daytime. $RH$ will be summarized with the mean. 
 
 
 \subsection{Secondary analyses}
 
 \subsubsection{Proportion of diagnosed TB patients among registered patients}
 
-The daily proportion of diagnosed TB patients $N^D$ among registered patients $N^R$ will be modeled with a Binomial logistic regression model
+The daily proportion of diagnosed TB patients among registered patients $PD$ will be modeled with a Binomial logistic regression model
 \begin{align*}
-    N^D | N^R, \beta_0, \beta_1 &\sim \text{Binomial-Logit}(\theta) \\
+    PD, \beta_0, \beta_1, \beta_2 &\sim \text{Binomial-Logit}(\theta) \\
     \theta &= \text{logit}(\mu) \\
-    \mu &= \beta_0 + \beta_1 \cdot I \\
+    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot I \\
     \beta_0 &\sim \text{Student-t}_5(0, 2.5) \\
-    \beta_1 &\sim \text{Student-t}_5\left(0, 2.5\right)~.
+    \beta_1^{[D]} &\sim \text{Normal}(0, \tau) \\
+    \tau &\sim \text{Student-t}_5^{+}(0, 1) \\
+    \beta_2 &\sim \text{Student-t}_5\left(0, 2.5\right)~.
 \end{align*}
 
 \subsubsection{Proportion of presumptive TB patients among registered patients}
 
-The daily proportion of presumptive TB patients $N^S$ among registered patients $N^R$ will be modeled with a Binomial logistic regression model
+The daily proportion of presumptive TB patients among registered patients $PP$ will be modeled with a Binomial logistic regression model
 \begin{align*}
-    N^S | N^R, \beta_0, \beta_1 &\sim \text{Binomial-Logit}(\theta) \\
+    PP, \beta_0, \beta_1, \beta_2 &\sim \text{Binomial-Logit}(\theta) \\
     \theta &= \text{logit}(\mu) \\
-    \mu &= \beta_0 + \beta_1 \cdot I \\
-    \beta_0 &\sim \text{Student-t}_5(0, 2.5) \\
-    \beta_1 &\sim \text{Student-t}_5\left(0, 2.5\right)~.
+    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot I \\
+    \beta_0 &\sim \text{Student-t}_5(0, 2.5 \cdot s_{\text{PP}}) \\
+    \beta_1^{[D]} &\sim \text{Normal}(0, \tau) \\
+    \tau &\sim \text{Student-t}_5^{+}(0, 1) \\
+    \beta_2 &\sim \text{Student-t}_5\left(0, 2.5\right)~.
 \end{align*}
 
-\subsubsection{Ventilation rate}
+\subsubsection{Outdoor air exchange rate}
 
-The ventilation rate will be defined in air changes per hour $ACH$ and computed daily from indoor CO$_2$ levels and the number of people in the clinic assuming steady-state conditions by using the maximum daily CO$_2$ level and room occupancy\cite{Batterman2017IJERPH}. The air change rate will be modeled with a Gaussian linear regression model
+The outdoor air exchange rate $AER$ will be computed daily from time-varying indoor CO$_2$ levels and the number of people in the clinic using a transient mass balance model \cite{Batterman2017IJERPH}. The $AER$ will be modeled with a Gaussian linear regression model
 \begin{align*}
-    ACH | \beta_0, \beta_1 &\sim \text{Normal}(\mu, \sigma) \\
-    \mu &= \beta_0 + \beta_1 \cdot I \\
-    \beta_0 &\sim \text{Student-t}_5(\mu_{\text{ACH}}, 2.5s_{\text{ACH}}) \\
-    \beta_1 &\sim \text{Student-t}_5\left(0, 2.5\frac{s_{\text{ACH}}}{s_{\text{I}}}\right) \\
+    AER | \beta_0, \beta_1, \beta_2 &\sim \text{Normal}(\mu, \sigma) \\
+    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot I \\
+    \beta_0 &\sim \text{Student-t}_5(\mu_{\text{ACH}}, 2.5 \cdot s_{\text{ACH}}) \\
+    \beta_1^{[D]} &\sim \text{Normal}(0, \tau) \\
+    \tau &\sim \text{Student-t}_5^{+}(0, 1) \\
+    \beta_2 &\sim \text{Student-t}_5\left(0, 2.5\right) \\
     \sigma &\sim \text{Exponential}\left(\frac{1}{s_{\text{ACH}}}\right).
 \end{align*}
 
 \subsubsection{Person-time in the clinic} 
 
-The daily person-time in the clinic $PT$ will be computed from the patient-tracking data and will be modeled with a linear regression model 
+The person-time in the clinic $PT$ will be computed from the patient-tracking data and will be modeled with a linear regression model 
 \begin{align*}
     PT | \beta_0, \beta_1, \beta_3 &\sim \text{Normal}(\mu, \sigma) \\
-    \mu &= \beta_0 + \beta_1 \cdot I + \beta_2 \cdot N^R \\
-    \beta_0 &\sim \text{Student-t}_5(\mu_{\text{PT}}, 2.5s_{\text{PT}}) \\
-    \beta_1, \beta_2 &\sim \text{Student-t}_5\left(0, 2.5\frac{s_{\text{PT}}}{s_{\text{x}}}\right) \\
+    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot I + \beta_3 \cdot N \\
+    \beta_0 &\sim \text{Student-t}_5(\mu_{\text{PT}}, 2.5\cdot s_{\text{PT}}) \\
+    \beta_1^{[D]} &\sim \text{Normal}(0, \tau) \\
+    \tau &\sim \text{Student-t}_5^{+}(0, 1) \\
+    \beta_2 &\sim ~\text{Student-t}_5(0, 2.5) \\
+    \beta_3 &\sim \text{Student-t}_5\left(0, 2.5\cdot \frac{s_{\text{PT}}}{s_{\text{x}}}\right) \\
     \sigma &\sim \text{Exponential}\left(\frac{1}{s_{\text{PT}}}\right).
 \end{align*}
-The model will be adjusted for the number of registered patients $N^R$.
+The model will be adjusted for the number of registered patients $N$.
 
 \subsubsection{Subgroup analysis}
 
@@ -291,9 +303,9 @@ The main analysis will be performed only for the waiting room of the clinic sinc
 
 \section{Supplementary analyses}
 
-\subsection{Respiratory infectious particles other than \emph{Mtb}}
+% \subsection{Respiratory infectious particles other than \emph{Mtb}}
 
-We tested for multiple respiratory infectious particles in bioaerosol samples, including SARS-CoV-2 and Influenza virus. The number of articles in the air by pathogen will be analyzed. Furthermore, where possible (e.g. for Influenza virus), the number of respiratory infectious particles in the air will also be compared between 2019 and 2021. 
+% We tested for multiple respiratory infectious particles in bioaerosol samples, including SARS-CoV-2 and Influenza virus. The number of articles in the air by pathogen will be analyzed. Furthermore, where possible (e.g. for Influenza virus), the number of respiratory infectious particles in the air will also be compared between 2019 and 2021. 
 
 \subsection{Modeling transmission risks}
 
@@ -303,15 +315,19 @@ We will model transmission risks using the Wells-Riley equation\cite{Riley1962AR
 \end{align*}
 where $P$ is the risk of infection, $f$ is the fraction of rebreathed air, $I$, is the number of infectious individuals in space, $n$ is the total number of individuals in space, $q$ is the generation rate of infectious quanta (doses of infectious particles), and $t$ is the duration of exposure. The number of infectious individuals can be determined based on clinical data. The fraction of rebreathed air can be computed from CO$_2$ levels. The number of individuals in space and exposure times can be determined based on the patient tracking data. The unknown parameter $q$ will be assumed based on reported estimates in the literature \cite{Mikszewski2021GF,Banholzer2024PGPH,Andrews2014JID,Escombe2008PLoSMed,Nardell1991ARRD,Riley1962ARRD}. The change in the generated infectious quanta due to mask wearing will also be informed by estimates from the literature \cite{McCreesh2021BMJGlobalHealth,Dharmadhikari2012AJRCCM}. 
 
-We will model the risk of infection based on the number of infectious people in space based on clinical data (presumptive and/or diagnosed TB patients) or reported estimates for the prevalence of TB by the World Health Organization\cite{WHO2022TBReport}. The risk of infection will also be modeled for other respiratory infections that were detected over the study, for example, SARS-CoV-2 and influenza.
+We will model the risk of infection based on the number of infectious people in space based on clinical data (presumptive and/or diagnosed TB patients) or reported estimates for the prevalence of TB by the World Health Organization\cite{WHO2022TBReport}. 
+
+% The risk of infection will also be modeled for other respiratory infections that were detected over the study, for example, SARS-CoV-2 and influenza.
 
 \section{Missing data}
 
-Missing data will be imputed within a fully Bayesian framework using parameters with prior distributions in place of the missing values. 
+Missing data will be imputed using multivariate imputation by chained equations assuming missing at random. Each variable (number of registered patients, presumptive TB cases, diagnosed TB cases, person-time in the clinic, air change rate, relative humidity, and number of \emph{Mtb} DNA copies per $\mu$L) will be imputed based on all other variables. 
+
+Analyses will be performed on each imputed dataset and the posterior draws of the modeled intervention effects will be pooled.   
 
 \section{Statistical software employed}
 
-The statistical software R (version 4.2.1 or later) with RStudio will be used for all statistical analyses. Data preprocessing and comparative analyses will be performed in the \texttt{tidyverse} package (version 1.3.2 or later). Bayesian analyses will be performed with the probabilistic programming language Stan (version 2.21.0 or later), using the R interface provided by the \texttt{rstan} package (version 2.21.7 or later).
+The statistical software R (version 4.2.1 or later) with RStudio will be used for all statistical analyses. Data preprocessing and comparative analyses will be performed in the \texttt{tidyverse} package (version 1.3.2 or later). Bayesian analyses will be performed with the probabilistic programming language Stan (version 2.21.0 or later), using the R interface provided by the \texttt{rstan} package (version 2.21.7 or later) and the \texttt{brms} package (version 2.18.0). The MICE package package (version 3.16.0) will be used for imputation.
 
 \bibliographystyle{vancouver}
 \bibliography{references}
