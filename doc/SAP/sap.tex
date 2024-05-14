@@ -203,16 +203,16 @@ Based on the DAG model (\cref{fig:dag}), we will use Bayesian linear regression 
 
 The direct effect of $I$ on $Y$ will be estimated with a Gaussian linear regression model
 \begin{align*}
-    Y | \beta_0, \beta_1, \beta_2, \beta_3 &\sim \text{Normal}^{+}(\mu, \sigma) \\
-    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot I + \beta_3 \cdot N \\
+    Y | \beta_0, \beta_1, \beta_2, \beta_3, \beta_4 &\sim \text{Normal}^{+}(\mu, \sigma) \\
+    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot \text{Afternoon} + \beta_3 \cdot I + \beta_4 \cdot N \\
     \beta_0 &\sim \text{Student-t}_5\left(\mu_y, 2.5s_{y}\right) \\
     \beta_1^{[D]} &\sim \text{Normal}(0, \tau) \\
     \tau &\sim \text{Student-t}_5^{+}(0, 1) \\
-    \beta_2 &\sim \text{Student-t}_5\left(0, 2.5\right) \\
-    \beta_3 &\sim \text{Student-t}_5\left(0, 2.5\cdot \frac{s_{y}}{s_{N}}\right) \\
+    \beta_2, \beta_3 &\sim \text{Student-t}_5\left(0, 2.5\right) \\
+    \beta_4 &\sim \text{Student-t}_5\left(0, 2.5\cdot \frac{s_{y}}{s_{N}}\right) \\
     \sigma &\sim \text{Exponential}\left(\frac{1}{s_{y}}\right),
 \end{align*}
-where $\beta_0 + \beta_1^{[D]}$ is a day-specific varying intercept (non-centered parametrization) to consider intraday correlation, $\beta_2$ is the effect of $I$ (differences between study years), and $\beta_3$ is the effect of $N$ to adjust for the general impact of the pandemic situation on the number of clinic visits during the COVID-19 pandemic. $\text{Student-t}_{5}^{+}$ is a Student-t with 5 degrees of freedom, truncated at zero, $\mu_{y}$ and $s_{y}$ are the empirical mean and standard deviation of the outcome, and $s_N$ is the empirical standard deviations of the number of registered patients $N$. 
+where $\beta_0 + \beta_1^{[D]}$ is a day-specific varying intercept (non-centered parametrization) to consider intraday correlation, $\beta_2$ is a daytime effect (morning vs afternoon), $\beta_3$ is the effect of $I$ (differences between study years), and $\beta_4$ is the effect of $N$ to adjust for the general impact of the pandemic situation on the number of clinic visits during the COVID-19 pandemic. $\text{Student-t}_{5}^{+}$ is a Student-t with 5 degrees of freedom, truncated at zero, $\mu_{y}$ and $s_{y}$ are the empirical mean and standard deviation of the outcome, and $s_N$ is the empirical standard deviations of the number of registered patients $N$. 
 
 Here and in the following, we will use weakly informative priors for all modeling parameters following recommendations on the choice of priors \cite{Gelman2008AAS,Gelman2008StatMed,Gelman2020RegOther,Stan2022,Gabry2023Priors}, unless stated otherwise. All priors represent our default but not definitive choices, and changes in the context of the data will be applied if necessary.
 
@@ -247,52 +247,52 @@ $IPT$ is the proportion of total person-time in the clinic $PT$ that is contribu
 
 The daily proportion of diagnosed TB patients among registered patients $PD$ will be modeled with a Binomial logistic regression model
 \begin{align*}
-    PD, \beta_0, \beta_1, \beta_2 &\sim \text{Binomial-Logit}(\theta) \\
+    PD, \beta_0, \beta_1, \beta_2, \beta_3 &\sim \text{Binomial-Logit}(\theta) \\
     \theta &= \text{logit}(\mu) \\
-    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot I \\
+    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot \text{Afternoon} + \beta_3 \cdot I \\
     \beta_0 &\sim \text{Student-t}_5(0, 2.5) \\
     \beta_1^{[D]} &\sim \text{Normal}(0, \tau) \\
     \tau &\sim \text{Student-t}_5^{+}(0, 1) \\
-    \beta_2 &\sim \text{Student-t}_5\left(0, 2.5\right)~.
+    \beta_2, \beta_3 &\sim \text{Student-t}_5\left(0, 2.5\right)~.
 \end{align*}
 
 \subsubsection{Proportion of presumptive TB patients among registered patients}
 
 The daily proportion of presumptive TB patients among registered patients $PP$ will be modeled with a Binomial logistic regression model
 \begin{align*}
-    PP, \beta_0, \beta_1, \beta_2 &\sim \text{Binomial-Logit}(\theta) \\
+    PP, \beta_0, \beta_1, \beta_2, \beta_3 &\sim \text{Binomial-Logit}(\theta) \\
     \theta &= \text{logit}(\mu) \\
-    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot I \\
+    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot \text{Afternoon} + \beta_3 \cdot I \\
     \beta_0 &\sim \text{Student-t}_5(0, 2.5 \cdot s_{\text{PP}}) \\
     \beta_1^{[D]} &\sim \text{Normal}(0, \tau) \\
     \tau &\sim \text{Student-t}_5^{+}(0, 1) \\
-    \beta_2 &\sim \text{Student-t}_5\left(0, 2.5\right)~.
+    \beta_2, \beta_3 &\sim \text{Student-t}_5\left(0, 2.5\right)~.
 \end{align*}
 
 \subsubsection{Outdoor air exchange rate}
 
 The outdoor air exchange rate $AER$ will be computed daily from time-varying indoor CO$_2$ levels and the number of people in the clinic using a transient mass balance model \cite{Batterman2017IJERPH}. The $AER$ will be modeled with a Gaussian linear regression model
 \begin{align*}
-    AER | \beta_0, \beta_1, \beta_2 &\sim \text{Normal}(\mu, \sigma) \\
-    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot I \\
-    \beta_0 &\sim \text{Student-t}_5(\mu_{\text{ACH}}, 2.5 \cdot s_{\text{ACH}}) \\
+    AER | \beta_0, \beta_1, \beta_2, \beta_3 &\sim \text{Normal}(\mu, \sigma) \\
+    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot \text{Afternoon} + \beta_3 \cdot I \\
+    \beta_0 &\sim \text{Student-t}_5(\mu_{\text{AER}}, 2.5 \cdot s_{\text{AER}}) \\
     \beta_1^{[D]} &\sim \text{Normal}(0, \tau) \\
     \tau &\sim \text{Student-t}_5^{+}(0, 1) \\
-    \beta_2 &\sim \text{Student-t}_5\left(0, 2.5\right) \\
-    \sigma &\sim \text{Exponential}\left(\frac{1}{s_{\text{ACH}}}\right).
+    \beta_2, \beta_3 &\sim \text{Student-t}_5\left(0, 2.5\right) \\
+    \sigma &\sim \text{Exponential}\left(\frac{1}{s_{\text{AER}}}\right).
 \end{align*}
 
 \subsubsection{Person-time in the clinic} 
 
 The person-time in the clinic $PT$ will be computed from the patient-tracking data and will be modeled with a linear regression model 
 \begin{align*}
-    PT | \beta_0, \beta_1, \beta_3 &\sim \text{Normal}(\mu, \sigma) \\
-    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot I + \beta_3 \cdot N \\
+    PT | \beta_0, \beta_1, \beta_3, \beta_4 &\sim \text{Normal}(\mu, \sigma) \\
+    \mu &= \beta_0 + \beta_1^{[D]} + \beta_2 \cdot \text{Afternoon} + \beta_3 \cdot I + \beta_4 \cdot N \\
     \beta_0 &\sim \text{Student-t}_5(\mu_{\text{PT}}, 2.5\cdot s_{\text{PT}}) \\
     \beta_1^{[D]} &\sim \text{Normal}(0, \tau) \\
     \tau &\sim \text{Student-t}_5^{+}(0, 1) \\
-    \beta_2 &\sim ~\text{Student-t}_5(0, 2.5) \\
-    \beta_3 &\sim \text{Student-t}_5\left(0, 2.5\cdot \frac{s_{\text{PT}}}{s_{\text{x}}}\right) \\
+    \beta_2, \beta_3 &\sim ~\text{Student-t}_5(0, 2.5) \\
+    \beta_4 &\sim \text{Student-t}_5\left(0, 2.5\cdot \frac{s_{\text{PT}}}{s_{\text{x}}}\right) \\
     \sigma &\sim \text{Exponential}\left(\frac{1}{s_{\text{PT}}}\right).
 \end{align*}
 The model will be adjusted for the number of registered patients $N$.
