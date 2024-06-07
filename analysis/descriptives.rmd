@@ -2,56 +2,95 @@
 library(tidyverse)
 source("utils/plotting.r")
 source("utils/trans_risk.r")
+source("utils/tex.r")
 ```
 
 ## Data
 
 ```{r}
-df <- readRDS("data-clean/combined-data-wr.rds")
+df <- readRDS("data-clean/combined-data-wr.rds") %>%
+  mutate(year = factor(year, levels = c(2019, 2021)))
 ```
 
 ## Descriptives
 
+```{r}
+custom_boxplot <- function(dat) {
+  p_value <- ggpubr::compare_means(
+    y ~ year,
+    data = dat, method = "t.test"
+  )$p.adj
+  p_value <- ifelse(
+    p_value < .001, "p < .001",
+    paste("p =", round(p_value, 3))
+  )
+  dat %>%
+    ggplot(aes(
+      x = year,
+      y = y
+    )) +
+    geom_boxplot(aes(fill = year)) +
+    geom_jitter(width = .1, height = 0, alpha = .5) +
+    ggsignif::geom_signif(
+      comparisons = list(c("2019", "2021")),
+      map_signif_level = FALSE,
+      textsize = 8 / cm(1),
+      annotations = p_value,
+    ) +
+    scale_fill_manual(
+      values = wes_palette("Zissou1")[c(2, 4)]
+    ) +
+    scale_y_continuous(
+      expand = expansion(mult = c(.01, .1))
+    ) +
+    theme_custom() +
+    theme(
+      axis.title.x = element_blank(),
+      legend.position = "none"
+    )
+}
+```
+
 ### Molecular
 
 ```{r}
-df %>%
-  ggplot(aes(
-    x = factor(year),
-    y = log1p(dna_copies / sampling_time)
-  )) +
-  geom_boxplot() +
-  facet_wrap(~daytime) +
-  geom_jitter(width = .1, height = 0, alpha = .5) +
-  theme_custom()
-```
-
-```{r}
-df %>%
-  dplyr::select(year, date, daytime, dna_copies) %>%
-  pivot_wider(
-    names_from = daytime,
-    values_from = dna_copies
+mol_pl <- df %>%
+  filter(!is.na(dna_copies)) %>%
+  group_by(year, date) %>%
+  summarise(
+    dna_copies = sum(dna_copies, na.rm = TRUE),
+    sampling_time = sum(sampling_time, na.rm = TRUE)
   ) %>%
-  mutate(across(
-    c(Morning, Afternoon), log1p
-  )) %>%
-  dplyr::select(-year, -date) %>%
-  ggpairs()
+  ungroup() %>%
+  mutate(
+    y = log1p(dna_copies / sampling_time)
+  ) %>%
+  custom_boxplot() +
+  labs(
+    y = expression("Log DNA copies per " * mu * "L hour of sampling"),
+    title = "a | Bacterial concentration in bioaerosols",
+  )
+
+mol_pl
 ```
 
 ### Environmental
 
 ```{r}
-df %>%
-  ggplot(aes(
-    x = factor(year),
-    y = aer
-  )) +
-  geom_boxplot() +
-  facet_wrap(~daytime) +
-  geom_jitter(width = .1, height = 0, alpha = .5) +
-  theme_custom()
+aer_pl <- df %>%
+  filter(!is.na(aer)) %>%
+  group_by(year, date) %>%
+  summarise(
+    y = mean(aer, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  custom_boxplot() +
+  labs(
+    y = "Air changes per hour",
+    title = "b | Air exchange rate",
+  )
+
+aer_pl
 
 df %>%
   group_by(year) %>%
@@ -61,15 +100,20 @@ df %>%
     q75 = quantile(aer, .75, na.rm = TRUE)
   )
 
-df %>%
-  ggplot(aes(
-    x = factor(year),
-    y = humidity
-  )) +
-  geom_boxplot() +
-  facet_wrap(~daytime) +
-  geom_jitter(width = .1, height = 0, alpha = .5) +
-  theme_custom()
+rH_pl <- df %>%
+  filter(!is.na(humidity)) %>%
+  group_by(year, date) %>%
+  summarise(
+    y = mean(humidity, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  custom_boxplot() +
+  labs(
+    y = "Relative humidity (%)",
+    title = "c | Relative humidity",
+  )
+
+rH_pl
 
 df %>%
   group_by(year) %>%
@@ -94,7 +138,7 @@ df %>%
 ### Tracking
 
 ```{r}
-df %>%
+track_pl <- df %>%
   dplyr::select(year, date, matches("pt_hr")) %>%
   pivot_longer(
     cols = -c(year, date),
@@ -107,39 +151,56 @@ df %>%
     daytime = ifelse(daytime <= 11, "Morning", "Afternoon"),
     daytime = factor(daytime, levels = c("Morning", "Afternoon"))
   ) %>%
-  group_by(year, date, daytime) %>%
+  group_by(year, date) %>%
+  filter(all(!is.na(pt))) %>%
   summarise(
     pt = sum(pt)
   ) %>%
   ungroup() %>%
-  ggplot(aes(
-    x = factor(year),
+  mutate(
     y = pt
-  )) +
-  geom_boxplot() +
-  facet_wrap(~daytime) +
-  geom_jitter(width = .1, height = 0, alpha = .5) +
-  theme_custom()
+  ) %>%
+  custom_boxplot() +
+  labs(
+    y = "Person-time (hours)",
+    title = "d | Person-time in clinic",
+  )
+
+track_pl
 ```
 
 ### Clinical
 
 ```{r}
-df %>%
-  ggplot(aes(
-    x = diagnosed
-  )) +
-  geom_histogram() +
-  facet_grid(year ~ daytime) +
-  theme_custom()
+reg_pl <- df %>%
+  filter(!is.na(registered)) %>%
+  group_by(year, date) %>%
+  summarise(
+    y = sum(registered, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  custom_boxplot() +
+  labs(
+    y = "Number of registered patients",
+    title = "e | Registered patients",
+  )
 
-df %>%
-  ggplot(aes(
-    x = registered
-  )) +
-  geom_histogram() +
-  facet_grid(year ~ daytime) +
-  theme_custom()
+reg_pl
+
+diagn_pl <- df %>%
+  filter(!is.na(diagnosed)) %>%
+  group_by(year, date) %>%
+  summarise(
+    y = sum(diagnosed, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  custom_boxplot() +
+  labs(
+    y = "Number of diagnosed TB patients",
+    title = "f | Diagnosed TB patients",
+  )
+
+diagn_pl
 
 df %>%
   ggplot(aes(
@@ -185,4 +246,23 @@ df %>%
   ) %>%
   dplyr::select(Morning, Afternoon) %>%
   ggpairs()
+```
+
+### Summary
+```{r}
+descriptive_pl <- cowplot::plot_grid(
+  mol_pl, aer_pl, rH_pl, track_pl, reg_pl, diagn_pl,
+  nrow = 3, align = "v"
+)
+
+save_plot(
+  descriptive_pl,
+  "results/descriptives.png",
+  w = 16,
+  h = 20
+)
+```
+
+```{r}
+
 ```
