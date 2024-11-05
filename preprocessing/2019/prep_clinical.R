@@ -160,3 +160,101 @@ write.csv(
   file = "data-clean/clinical-data.csv",
   row.names = FALSE
 )
+
+
+tb_ident_full <- read_xlsx(
+  "data-raw/Copy of TB Identification and Treatment Masiphumelele 2019 and 2021.xlsx",
+  sheet = 1,
+  skip = 6
+) %>%
+  mutate(Date = as.Date(Date)) %>%
+  mutate(year = lubridate::year(Date))
+tb_char_full <- read_xlsx(
+  "data-raw/Copy of TB Identification and Treatment Masiphumelele 2019 and 2021.xlsx",
+  sheet = 2,
+  skip = 6
+) %>%
+  mutate(
+    date = `Treatment Start Date`,
+    date = as.Date(date)
+  ) %>%
+  mutate(year = lubridate::year(date))
+csr_full <- tb_ident_full %>%
+  group_by(year) %>%
+  summarise(
+    suspected = n(),
+    cases = sum(!is.na(`Date RX started`))
+  ) %>%
+  ungroup()
+xpert_full <- tb_ident_full %>%
+  mutate(across(c(`Test name`, `Test result`), tolower)) %>%
+  filter(grepl("xpert", `Test name`)) %>%
+  group_by(year, `Episode id`) %>%
+  summarise(xpert_pos = any(grepl("pos", `Test result`))) %>%
+  ungroup() %>%
+  group_by(year) %>%
+  summarise(
+    xpert_pos = sum(xpert_pos),
+    xpert_tests = n(),
+  ) %>%
+  ungroup() %>%
+  mutate(
+    xpert_neg = xpert_tests - xpert_pos
+  )
+hiv_status_full <- tb_char_full %>%
+  mutate(hiv = tolower(`HIV Status`)) %>%
+  group_by(year) %>%
+  summarise(
+    hiv_pos = sum(grepl("pos|+", hiv), na.rm = TRUE),
+    hiv_neg = sum(grepl("neg|-", hiv), na.rm = TRUE),
+  ) %>%
+  ungroup() %>%
+  mutate(
+    hiv_pos_ratio = hiv_pos / (hiv_pos + hiv_neg)
+  )
+smear_full <- tb_char_full %>%
+  rename(
+    smear_result = `Smear Test Result(Pre/Treatment)01`,
+    smear_grading = `Smear Grading(Pre/Treatment)01`
+  ) %>%
+  mutate(
+    smear_result = tolower(smear_result),
+    smear_grading = tolower(smear_grading),
+    smear_result = case_when(
+      grepl("pos", smear_result) ~ "Positive",
+      grepl("scant", smear_result) | grepl("scant", smear_grading) ~ "Scanty",
+      grepl("neg", smear_result) ~ "Negative"
+    ),
+    smear_result = ifelse(is.na(smear_result), "No smear", smear_result),
+    smear = ifelse(
+      smear_result == "Positive",
+      paste0("Smear / Positive", gsub("[a-z]", "", ifelse(is.na(smear_grading), "", smear_grading))),
+      ifelse(smear_result == "Scanty",
+        "Smear / Scanty",
+        ifelse(smear_result == "Negative", "Negative", "No smear")
+      )
+    )
+  ) %>%
+  group_by(year, smear) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  tidyr::complete(year, smear) %>%
+  mutate(n = ifelse(is.na(n), 0, n)) %>%
+  spread(smear, n) %>%
+  mutate(
+    Positive = `Smear / Positive` +
+      `Smear / Positive+` +
+      `Smear / Positive++` +
+      `Smear / Positive+++`,
+    `Smear / Scanty` = 0
+  )
+clinical_data_full <- csr_full %>%
+  left_join(hiv_status_full, by = "year") %>%
+  left_join(smear_full, by = "year") %>%
+  left_join(xpert_full, by = "year")
+
+write.csv(
+  clinical_data_full,
+  file = "data-clean/clinical-data-full-years.csv",
+  row.names = FALSE
+)

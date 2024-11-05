@@ -327,43 +327,43 @@ Interpretation:
 
 ### Comparison of TB patient characteristics
 
-**Figure**: Comparison of TB cases-to-suspected ratio, proportion of positive GeneXpert test results, smear grading in TB patients, and proportion of HIV+ TB patients.
+**Figure**: Comparison of the study periods in 2019 and 2021 regarding the proportion of positive GeneXpert test results, smear grading in TB patients, and proportion of HIV+ TB patients.
 
 ```{r clinical-characteristics, fig.height=4.7, fig.width=7}
 col_pal <- paletteer_d("colorBlindness::Blue2Orange12Steps")
 no_yes_idx <- c(4, 8)
 x_exp <- 0
 
-csr_pl <- clin %>%
-  dplyr::select(year, suspected, tb_patients) %>%
-  rename(
-    `Suspected` = suspected,
-    `Cases` = tb_patients
-  ) %>%
-  reshape2::melt("year") %>%
-  mutate(variable = factor(variable, levels = c("Suspected", "Cases"))) %>%
-  group_by(year) %>%
-  mutate(
-    prop = round(100 * value / sum(value))
-  ) %>%
-  ungroup() %>%
-  mutate(lab = paste0(variable, ": ", value, " (", prop, "%)")) %>%
-  ggplot(aes(x = prop, y = year, fill = variable)) +
-  geom_bar(position = "stack", stat = "identity") +
-  geom_text(
-    aes(label = lab),
-    size = 8 / cm(1),
-    position = position_stack(vjust = 0.5)
-  ) +
-  scale_x_continuous(expand = expansion(add = c(0, x_exp))) +
-  scale_y_discrete(expand = c(0, 0)) +
-  scale_fill_manual(values = col_pal[no_yes_idx]) +
-  ggtitle("A | Proportion of TB cases among suspected patients") +
-  theme_custom() +
-  theme(
-    axis.title = element_blank(),
-    legend.position = "none"
-  )
+# csr_pl <- clin %>%
+#   dplyr::select(year, suspected, tb_patients) %>%
+#   rename(
+#     `Suspected` = suspected,
+#     `Cases` = tb_patients
+#   ) %>%
+#   reshape2::melt("year") %>%
+#   mutate(variable = factor(variable, levels = c("Suspected", "Cases"))) %>%
+#   group_by(year) %>%
+#   mutate(
+#     prop = round(100 * value / sum(value))
+#   ) %>%
+#   ungroup() %>%
+#   mutate(lab = paste0(variable, ": ", value, " (", prop, "%)")) %>%
+#   ggplot(aes(x = prop, y = year, fill = variable)) +
+#   geom_bar(position = "stack", stat = "identity") +
+#   geom_text(
+#     aes(label = lab),
+#     size = 8 / cm(1),
+#     position = position_stack(vjust = 0.5)
+#   ) +
+#   scale_x_continuous(expand = expansion(add = c(0, x_exp))) +
+#   scale_y_discrete(expand = c(0, 0)) +
+#   scale_fill_manual(values = col_pal[no_yes_idx]) +
+#   ggtitle("A | Proportion of TB cases among suspected patients") +
+#   theme_custom() +
+#   theme(
+#     axis.title = element_blank(),
+#     legend.position = "none"
+#   )
 
 genexpert_pl <- clin %>%
   dplyr::select(year, xpert_pos, xpert_neg) %>%
@@ -389,7 +389,7 @@ genexpert_pl <- clin %>%
   scale_x_continuous(expand = expansion(add = c(0, x_exp))) +
   scale_y_discrete(expand = c(0, 0)) +
   scale_fill_manual(values = col_pal[no_yes_idx]) +
-  ggtitle("B | Proportion of positive GeneXpert test results among suspected patients") +
+  ggtitle("A | Proportion of positive GeneXpert test results among suspected patients") +
   theme_custom() +
   theme(
     axis.title = element_blank(),
@@ -431,7 +431,7 @@ smear_pl <- clin %>%
   ) +
   scale_y_discrete(expand = c(0, 0)) +
   scale_fill_manual(values = col_pal[c(4, 8, 9, 10, 11)]) +
-  ggtitle("C | Proportion of sputum smear gradings among TB patients") +
+  ggtitle("B | Proportion of sputum smear gradings among TB patients") +
   theme_custom() +
   theme(
     axis.title = element_blank(),
@@ -462,14 +462,14 @@ hiv_pl <- clin %>%
   scale_x_continuous(expand = expansion(add = c(0, x_exp))) +
   scale_y_discrete(expand = c(0, 0)) +
   scale_fill_manual(values = col_pal[no_yes_idx]) +
-  ggtitle("D | Proportion of HIV-positive TB patients") +
+  ggtitle("C | Proportion of HIV-positive TB patients") +
   theme_custom() +
   theme(
     axis.title = element_blank(),
     legend.position = "none"
   )
 
-clin_pl <- csr_pl + genexpert_pl + smear_pl + hiv_pl +
+clin_pl <- genexpert_pl + smear_pl + hiv_pl +
   plot_layout(ncol = 1, guides = "collect") &
   theme(legend.position = "none")
 
@@ -560,6 +560,7 @@ df %>%
   pivot_wider(names_from = c(year, daytime), values_from = value) %>%
   knitr::kable(align = "lrrrr")
 ```
+
 
 &nbsp;
 
@@ -670,3 +671,129 @@ save_plot(
 Interpretation:
 
 - Mtb concentration not correlated with person time in the clinic or environmental conditions.
+
+&nbsp;
+
+**Figure**: Comparison of the entire years 2019 and 2021 regarding the proportion of positive GeneXpert test results, smear grading in TB patients, and proportion of HIV+ TB patients.
+
+```{r clin-data-full-years, include=FALSE}
+clin_full <- read_csv("data-clean/clinical-data-full-years.csv") %>%
+  mutate(year = factor(year, levels = c(2019, 2021)))
+```
+
+```{r clinical-characteristics-full-years, fig.height=4.7, fig.width=7}
+genexpert_full_pl <- clin_full %>%
+  dplyr::select(year, xpert_pos, xpert_neg) %>%
+  rename(
+    `Pos` = xpert_pos,
+    `Neg` = xpert_neg
+  ) %>%
+  reshape2::melt("year") %>%
+  mutate(variable = factor(variable, levels = c("Neg", "Pos"))) %>%
+  group_by(year) %>%
+  mutate(
+    prop = round(100 * value / sum(value))
+  ) %>%
+  ungroup() %>%
+  mutate(lab = paste0(variable, ": ", value, " (", prop, "%)")) %>%
+  ggplot(aes(x = prop, y = year, fill = variable)) +
+  geom_bar(position = "stack", stat = "identity") +
+  geom_text(
+    aes(label = lab),
+    size = 8 / cm(1),
+    position = position_stack(vjust = 0.6)
+  ) +
+  scale_x_continuous(expand = expansion(add = c(0, x_exp))) +
+  scale_y_discrete(expand = c(0, 0)) +
+  scale_fill_manual(values = col_pal[no_yes_idx]) +
+  ggtitle("A | Proportion of positive GeneXpert test results among suspected patients") +
+  theme_custom() +
+  theme(
+    axis.title = element_blank(),
+    legend.position = "none"
+  )
+
+smear_full_pl <- clin_full %>%
+  dplyr::select(year, matches("mear"), Negative) %>%
+  reshape2::melt("year") %>%
+  mutate(
+    variable = gsub("Smear / Positive$", "Pos", variable),
+    variable = gsub("Smear / Positive", "P", variable),
+    variable = gsub("Smear / Scanty", "Scant", variable),
+    variable = gsub("Negative", "Neg", variable),
+  ) %>%
+  filter(variable != "No smear") %>%
+  mutate(
+    variable = factor(
+      variable,
+      levels = c("Neg", "Scant", "Pos", "P+", "P++", "P+++")
+    )
+  ) %>%
+  group_by(year) %>%
+  mutate(
+    prop = smart.round(100 * value / sum(value))
+  ) %>%
+  filter(prop > 0) %>%
+  ungroup() %>%
+  mutate(lab = paste0(variable, ": ", value, " (", prop, "%)")) %>%
+  ggplot(aes(x = prop, y = year, fill = variable)) +
+  geom_bar(position = "stack", stat = "identity") +
+  geom_text(
+    aes(label = lab),
+    size = 8 / cm(1),
+    position = position_stack(vjust = 0.375)
+  ) +
+  scale_x_continuous(
+    expand = expansion(add = c(0, x_exp))
+  ) +
+  scale_y_discrete(expand = c(0, 0)) +
+  scale_fill_manual(values = col_pal[c(4, 8, 9, 10, 11)]) +
+  ggtitle("B | Proportion of sputum smear gradings among TB patients") +
+  theme_custom() +
+  theme(
+    axis.title = element_blank(),
+    legend.position = "none"
+  )
+
+hiv_full_pl <- clin_full %>%
+  dplyr::select(year, hiv_pos, hiv_neg) %>%
+  rename(
+    `HIV+` = hiv_pos,
+    `HIV-` = hiv_neg
+  ) %>%
+  reshape2::melt("year") %>%
+  mutate(variable = factor(variable, levels = c("HIV-", "HIV+"))) %>%
+  group_by(year) %>%
+  mutate(
+    prop = round(100 * value / sum(value))
+  ) %>%
+  ungroup() %>%
+  mutate(lab = paste0(variable, ": ", value, " (", prop, "%)")) %>%
+  ggplot(aes(x = prop, y = year, fill = variable)) +
+  geom_bar(position = "stack", stat = "identity") +
+  geom_text(
+    aes(label = lab),
+    size = 8 / cm(1),
+    position = position_stack(vjust = 0.5)
+  ) +
+  scale_x_continuous(expand = expansion(add = c(0, x_exp))) +
+  scale_y_discrete(expand = c(0, 0)) +
+  scale_fill_manual(values = col_pal[no_yes_idx]) +
+  ggtitle("C | Proportion of HIV-positive TB patients") +
+  theme_custom() +
+  theme(
+    axis.title = element_blank(),
+    legend.position = "none"
+  )
+
+clin_full_pl <- genexpert_full_pl + smear_full_pl + hiv_full_pl +
+  plot_layout(ncol = 1, guides = "collect") &
+  theme(legend.position = "none")
+
+save_plot(
+  clin_full_pl,
+  "results/descriptives-clinical-full.png",
+  w = 16,
+  h = 12
+)
+```
