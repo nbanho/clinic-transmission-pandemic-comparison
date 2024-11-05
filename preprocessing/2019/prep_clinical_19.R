@@ -11,13 +11,15 @@ library(reshape2)
 # load clinical data
 clinical <- read_xlsx("data-raw/2019/clinical/Clinical_data29Jan20.xlsx") %>%
   dplyr::select(
-    patient_id, patient_age_years, patient_gender,
-    GeneXpert, event_updated_at, Start_Date, Treatment_Outcome_Date
+    patient_id, patient_age_years, patient_gender, HIV_Status, MDR,
+    Smear, Culture, GeneXpert,
+    event_updated_at, Start_Date, Treatment_Outcome_Date
   ) %>%
   rename(
     age = patient_age_years,
     gender = patient_gender,
-    test_result = GeneXpert,
+    hiv = HIV_Status,
+    mdr = MDR,
     date_time = event_updated_at,
     tb_treat_start = Start_Date,
     tb_treat_end = Treatment_Outcome_Date
@@ -26,7 +28,33 @@ clinical <- read_xlsx("data-raw/2019/clinical/Clinical_data29Jan20.xlsx") %>%
     date_time = as.POSIXct(date_time, tz = "CET"),
     date = as.Date(date_time),
     across(c(tb_treat_start, tb_treat_end), ~ as.Date(.x))
+  ) %>%
+  mutate(
+    test_result = ifelse(
+      !is.na(Smear) | !is.na(GeneXpert), 0,
+      ifelse(Smear == "POSITIVE" | GeneXpert == "POSITIVE", 1, NA)
+    ),
+    was_suspected = !is.na(test_result),
+    is_infectious = ifelse(!is.na(tb_treat_start),
+      ifelse(date <= (tb_treat_start + days(28)), TRUE, FALSE), FALSE
+    ),
+    is_uninfectious = ifelse(!is.na(tb_treat_start),
+      ifelse(date > (tb_treat_start + days(28)), TRUE, FALSE), FALSE
+    ),
+    is_undiagnosed = ifelse(is.na(tb_treat_start), TRUE, FALSE)
   )
+
+# detailed TB data
+clinical_tb <- read_xlsx(
+  "data-raw/2019/clinical/Copy of TB Identification and Treatment Masiphumelele 2019 and 2021.xlsx",
+  sheet = 1, skip = 6
+)
+
+a <- left_join(
+  clinical_tb %>% dplyr::select(`Episode id`),
+  clinical %>% dplyr::select(patient_id) %>% mutate(matched = TRUE),
+  by = c("Episode id" = "patient_id")
+)
 
 #### Checks ####
 #' look for people who tested negative or positive but did not initiate a TB treatment
@@ -94,6 +122,7 @@ clinical %>%
 
 clinical <- clinical %>%
   mutate(
+    was_suspected = !is.na(test_result),
     is_infectious = ifelse(!is.na(tb_treat_start),
       ifelse(date <= tb_treat_start + days(28), TRUE, FALSE), FALSE
     ),

@@ -26,13 +26,15 @@ clin_tb_pat <- readxl::read_excel(
     age = `Age(Years)`,
     gender = Gender,
     tb_treat_start = `Treatment Start Date`,
-    folder_number = `Folder Number`
+    folder_number = `Folder Number`,
+    hiv = `HIV Status`
   ) %>%
-  dplyr::select(age, gender, tb_treat_start, folder_number) %>%
+  dplyr::select(age, gender, hiv, tb_treat_start, folder_number) %>%
   mutate(
     gender = factor(gender, levels = c("Male", "Female")),
     tb_treat_start = as.Date(tb_treat_start),
-    folder_number = as.integer(folder_number)
+    folder_number = as.integer(folder_number),
+    hiv = ifelse(hiv == "HIV+", 1, ifelse(hiv == "Neg", 0, NA))
   )
 
 clin_tb_sus <- read.csv("data-raw/2021/clinical/tb-suspects.csv") %>%
@@ -53,14 +55,16 @@ clin_tb_sus <- read.csv("data-raw/2021/clinical/tb-suspects.csv") %>%
       TRUE, FALSE
     ),
     sus_treat_start = ifelse(sus_started_treat, care_status_date, NA),
-    sus_treat_start = as.Date(sus_treat_start, format = "%d.%m.%y")
+    sus_treat_start = as.Date(sus_treat_start, format = "%d.%m.%y"),
+    mdr = ifelse(grepl("MDR", treatment_reference_number), 1, 0)
   ) %>%
   dplyr::select(
     patient_id,
     was_suspected,
     sus_tested_positive,
     sus_started_treat,
-    sus_treat_start
+    sus_treat_start,
+    mdr
   )
 
 # combine clinical data and determine infectivity
@@ -85,9 +89,14 @@ clinical <- clin_pat_time_masi %>%
     patient_id,
     date,
     date_time,
+    was_suspected,
     is_infectious,
     is_undiagnosed,
-    is_uninfectious
+    is_uninfectious,
+    age,
+    gender,
+    hiv,
+    mdr
   )
 
 # inspect
@@ -107,6 +116,7 @@ clin_count <- clinical %>%
   mutate(daytime = ifelse(hour(date_time) < 11, "Morning", "Afternoon")) %>%
   group_by(date, daytime) %>%
   summarise(
+    suspected = n_distinct(patient_id[was_suspected]),
     diagnosed = n_distinct(patient_id[is_infectious]),
     undiagnosed = n_distinct(patient_id[is_undiagnosed]),
     uninfectious = n_distinct(patient_id[is_uninfectious])
@@ -118,7 +128,7 @@ clin_count <- clinical %>%
 
 # table summarize
 clin_count %>%
-  summarise(across(c(diagnosed, undiagnosed, uninfectious, registered), mean))
+  summarise(across(c(suspected, diagnosed, undiagnosed, uninfectious, registered), mean))
 
 clin_count %>% filter(
   date %in% c(
