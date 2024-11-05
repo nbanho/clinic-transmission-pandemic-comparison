@@ -192,34 +192,6 @@ custom_boxplot <- function(dat) {
       legend.title = element_blank()
     )
 }
-
-plot_rates <- function(est, pval) {
-  est %>%
-    ggplot(aes(x = year, y = est)) +
-    geom_errorbar(
-      aes(ymin = lower, ymax = upper, color = year),
-      width = 0.25, size = 1
-    ) +
-    geom_point(
-      aes(color = year),
-      size = 3, shape = 23, fill = "white"
-    ) +
-    ggsignif::geom_signif(
-      comparisons = list(c(1, 2), c(3, 4)),
-      map_signif_level = FALSE,
-      textsize = 8 / cm(1),
-      annotations = p_value_format(pval)
-    ) +
-    scale_color_manual(
-      values = wes_palette("Zissou1")[c(2, 4)]
-    ) +
-    theme_custom() +
-    theme(
-      axis.title.x = element_blank(),
-      legend.position = "bottom",
-      legend.title = element_blank()
-    )
-}
 ```
 
 ```{r molecular}
