@@ -154,7 +154,7 @@ Interpretation:
 ```{r custom-boxplot}
 p_value_format <- function(p_value) {
   ifelse(
-    p_value < .001, "p < .001",
+    p_value < .001, "p < 0.001",
     ifelse(p_value < 0.01, paste("p =", round(p_value, 3)),
       paste("p =", round(p_value, 2))
     )
@@ -361,8 +361,8 @@ Interpretation:
 **Table**: Daytime-adjusted p-values from linear modeles to test for an overall difference in each variable between study periods.
 
 ```{r summary-pvalue}
-p_value_overall <- function(dat) {
-  my <- lm(y ~ year + daytime, data = dat)
+p_value_overall <- function(dat, fam = "gaussian") {
+  my <- glm(y ~ year + daytime, data = dat, family = fam)
   pval <- summary(my)$coefficients["year2021", 4]
   p_value_format(pval)
 }
@@ -372,6 +372,10 @@ pvals_overall <- data.frame(
     "Person-time in clinic",
     "CO2 concentration",
     "Air exchange rate",
+    "Temperature",
+    "Relative humidity",
+    "Diagnosed TB",
+    "Registed patients",
     "Prevalence of TB patients",
     "Modelled transmission risk",
     "Mtb concentration in bioaerosols"
@@ -380,7 +384,11 @@ pvals_overall <- data.frame(
     p_value_overall(pt_df),
     p_value_overall(daily_max_co2 %>% rename(y = co2)),
     p_value_overall(df %>% rename(y = aer)),
+    p_value_overall(df %>% rename(y = temperature)),
+    p_value_overall(df %>% rename(y = humidity)),
     p_value_overall(df %>% mutate(y = diagnosed / registered)),
+    p_value_overall(df %>% mutate(y = diagnosed), fam = "poisson"),
+    p_value_overall(df %>% mutate(y = registered), fam = "poisson"),
     p_value_overall(well_riley %>% rename(y = P)),
     p_value_overall(df %>% mutate(y = log1p(dna_copies / sampling_time)))
   )
