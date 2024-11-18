@@ -6,6 +6,7 @@ require(Cairo)
 require(gg.layers)
 require(wesanderson) # https://github.com/karthik/wesanderson
 require(paletteer)
+require(ggsignif)
 
 smart.round <- function(x) {
   y <- floor(x)

@@ -11,6 +11,7 @@ knitr::opts_knit$set(root.dir = "..")
 
 ```{r libraries, include=FALSE}
 library(tidyverse)
+library(lubridate)
 library(epiR)
 source("utils/plotting.r")
 source("utils/trans_risk.r")
@@ -34,6 +35,18 @@ df <- readRDS("data-clean/combined-data-wr.rds") %>%
 
 clin <- read_csv("data-clean/clinical-data.csv") %>%
   mutate(year = factor(year, levels = c(2019, 2021)))
+
+full_environ <- readRDS("data-clean/2019/environmental.rds") %>%
+  rbind(readRDS("data-clean/2021/environmental.rds")) %>%
+  filter(room == "Waiting room") %>%
+  filter(date %in% df$date) %>%
+  filter(between(hour(date_time), 8, 18)) %>%
+  mutate(
+    year = year(date),
+    year = factor(year, levels = c(2019, 2021)),
+    daytime = ifelse(hour(date_time) < 12, "Morning", "Afternoon"),
+    daytime = factor(daytime, levels = c("Morning", "Afternoon"))
+  )
 ```
 
 ```{r data-summary}
@@ -194,23 +207,6 @@ custom_boxplot <- function(dat) {
 }
 ```
 
-```{r molecular}
-mol_pl <- df %>%
-  filter(!is.na(dna_copies)) %>%
-  mutate(
-    y = log1p(dna_copies / sampling_time)
-  ) %>%
-  custom_boxplot() +
-  labs(
-    y = expression("Log DNA copies per " * mu * "L per hour of sampling"),
-    title = "A | Mtb concentration in bioaerosols",
-  ) +
-  scale_y_continuous(
-    limits = c(0, 10),
-    expand = c(0, 0)
-  )
-```
-
 ```{r tracking}
 pt_df <- df %>%
   dplyr::select(year, date, matches("pt_hr")) %>%
@@ -236,7 +232,7 @@ track_pl <- pt_df %>%
   custom_boxplot() +
   labs(
     y = "Person-time (hours)",
-    title = "B | Person-time in clinic",
+    title = "A | Person-time in clinic",
   ) +
   scale_y_continuous(
     limits = c(0, 350),
@@ -244,67 +240,105 @@ track_pl <- pt_df %>%
   )
 ```
 
-```{r tb-visits}
-# tb cases per day
-inc_pl <- df %>%
-  mutate(y = diagnosed / registered) %>%
+```{r environ}
+daily_max_co2 <- full_environ %>%
+  filter(room == "Waiting room") %>%
+  group_by(year, date, daytime) %>%
+  summarise(co2 = max(co2, na.rm = TRUE)) %>%
+  ungroup()
+
+co2_pl <- daily_max_co2 %>%
+  filter(!is.na(co2)) %>%
+  rename(y = co2) %>%
   custom_boxplot() +
   labs(
-    y = "Proportion of TB among registered patients",
-    title = "C | Prevalence of TB patients",
+    y = expression("Daily maximum CO"[2] * " (parts per million)"),
+    title = expression(bold("C | CO"[2] * " concentration")),
   ) +
   scale_y_continuous(
-    limits = c(0, .5),
-    expand = c(0, 0),
-    labels = function(x) x * 100
+    limits = c(400, 1600),
+    labels = scales::comma
   )
-```
 
-```{r environ}
 aer_pl <- df %>%
   filter(!is.na(aer)) %>%
   rename(y = aer) %>%
   custom_boxplot() +
   labs(
     y = "Air changes per hour",
-    title = "D | Air exchange rate",
+    title = "C | Air exchange rate",
   ) +
   scale_y_continuous(
     limits = c(0, 50),
     expand = c(0, 0)
   )
+```
 
-rH_pl <- df %>%
-  filter(!is.na(humidity)) %>%
-  rename(y = humidity) %>%
+```{r tb-visits}
+inc_pl <- df %>%
+  mutate(y = diagnosed / registered) %>%
   custom_boxplot() +
   labs(
-    y = "Relative humidity (%)",
-    title = "E | Relative humidity",
+    y = "Proportion of TB among registered patients",
+    title = "D | Prevalence of TB patients",
   ) +
   scale_y_continuous(
-    limits = c(0, 100),
-    expand = c(0, 0)
+    limits = c(0, .5),
+    expand = expansion(add = c(.02, 0)),
+    labels = function(x) x * 100
+  )
+```
+
+```{r modelled-risk}
+well_riley <- df %>%
+  dplyr::select(year, date, daytime, diagnosed, aer) %>%
+  rename(I = diagnosed) %>%
+  mutate(
+    q = 2,
+    t = 1,
+    p = 0.5,
+    V = 174.075,
+    Q = aer * V,
+    P = 1 - exp(-I * p * q * t / Q)
   )
 
-temp_pl <- df %>%
-  filter(!is.na(temperature)) %>%
-  rename(y = temperature) %>%
+well_riley_pl <- well_riley %>%
+  rename(y = P) %>%
   custom_boxplot() +
   labs(
-    y = "Temperature (°C)",
-    title = "F | Temperature",
+    y = "Probability of infection (%)",
+    title = "E | Modelled transmission risk",
   ) +
   scale_y_continuous(
-    limits = c(0, 35),
-    expand = c(0, 0)
+    limits = c(0, .05),
+    expand = expansion(add = c(.001, 0)),
+    labels = function(x) x * 100
+  )
+
+well_riley_pl
+```
+
+```{r molecular}
+mol_pl <- df %>%
+  filter(!is.na(dna_copies)) %>%
+  mutate(
+    y = log1p(dna_copies / sampling_time)
+  ) %>%
+  custom_boxplot() +
+  labs(
+    y = expression("Log DNA copies per " * mu * "L per hour of sampling"),
+    title = "F | Mtb concentration in bioaerosols",
+  ) +
+  scale_y_continuous(
+    limits = c(0, 10),
+    expand = expansion(add = c(0.5, 0))
   )
 ```
 
 **Figure**: Comparison of Mtb bioaerosol concentration, clinical occupancy, prevalence of TB patients, and environmental conditions between 2019 and 2021.
 
-```{r summary-plot, fig.height=8.3, fig.width=6.3}
-descriptive_pl <- mol_pl + aer_pl + track_pl + rH_pl + inc_pl + temp_pl +
+```{r summary-plot, fig.height=7.9, fig.width=6.3}
+descriptive_pl <- track_pl + co2_pl + aer_pl + inc_pl + well_riley_pl + mol_pl +
   plot_layout(ncol = 2, nrow = 3, guides = "collect") &
   theme(legend.position = "bottom")
 
@@ -312,7 +346,7 @@ save_plot(
   descriptive_pl,
   "results/descriptives.png",
   w = 16,
-  h = 21
+  h = 20
 )
 ```
 
@@ -324,6 +358,37 @@ Interpretation:
 - Air exchange rate was higher in 2021, suggesting better ventilation, which should reduce outcome.
 - Relative humidity was lower and temperature higher in 2021, which could impact outcome, but the influence is unclear.
 
+**Table**: Daytime-adjusted p-values from linear modeles to test for an overall difference in each variable between study periods.
+
+```{r summary-pvalue}
+p_value_overall <- function(dat) {
+  my <- lm(y ~ year + daytime, data = dat)
+  pval <- summary(my)$coefficients["year2021", 4]
+  p_value_format(pval)
+}
+
+pvals_overall <- data.frame(
+  variable = c(
+    "Person-time in clinic",
+    "CO2 concentration",
+    "Air exchange rate",
+    "Prevalence of TB patients",
+    "Modelled transmission risk",
+    "Mtb concentration in bioaerosols"
+  ),
+  pvalue = c(
+    p_value_overall(pt_df),
+    p_value_overall(daily_max_co2 %>% rename(y = co2)),
+    p_value_overall(df %>% rename(y = aer)),
+    p_value_overall(df %>% mutate(y = diagnosed / registered)),
+    p_value_overall(well_riley %>% rename(y = P)),
+    p_value_overall(df %>% mutate(y = log1p(dna_copies / sampling_time)))
+  )
+)
+
+knitr::kable(pvals_overall, align = "rl")
+```
+
 
 ### Comparison of TB patient characteristics
 
@@ -333,37 +398,6 @@ Interpretation:
 col_pal <- paletteer_d("colorBlindness::Blue2Orange12Steps")
 no_yes_idx <- c(4, 8)
 x_exp <- 0
-
-# csr_pl <- clin %>%
-#   dplyr::select(year, suspected, tb_patients) %>%
-#   rename(
-#     `Suspected` = suspected,
-#     `Cases` = tb_patients
-#   ) %>%
-#   reshape2::melt("year") %>%
-#   mutate(variable = factor(variable, levels = c("Suspected", "Cases"))) %>%
-#   group_by(year) %>%
-#   mutate(
-#     prop = round(100 * value / sum(value))
-#   ) %>%
-#   ungroup() %>%
-#   mutate(lab = paste0(variable, ": ", value, " (", prop, "%)")) %>%
-#   ggplot(aes(x = prop, y = year, fill = variable)) +
-#   geom_bar(position = "stack", stat = "identity") +
-#   geom_text(
-#     aes(label = lab),
-#     size = 8 / cm(1),
-#     position = position_stack(vjust = 0.5)
-#   ) +
-#   scale_x_continuous(expand = expansion(add = c(0, x_exp))) +
-#   scale_y_discrete(expand = c(0, 0)) +
-#   scale_fill_manual(values = col_pal[no_yes_idx]) +
-#   ggtitle("A | Proportion of TB cases among suspected patients") +
-#   theme_custom() +
-#   theme(
-#     axis.title = element_blank(),
-#     legend.position = "none"
-#   )
 
 genexpert_pl <- clin %>%
   dplyr::select(year, xpert_pos, xpert_neg) %>%
@@ -484,6 +518,173 @@ save_plot(
 
 ## Supplementary results
 
+**Figure**: Comparison of temperature and relative humidity between 2019 and 2021.
+
+```{r supp-environ-temp-rH, fig.height=3, fig.width=6.3}
+rH_pl <- df %>%
+  filter(!is.na(humidity)) %>%
+  rename(y = humidity) %>%
+  custom_boxplot() +
+  labs(
+    y = "Relative humidity (%)",
+    title = "A | Relative humidity",
+  ) +
+  scale_y_continuous(
+    limits = c(0, 100),
+    expand = c(0, 0)
+  )
+
+temp_pl <- df %>%
+  filter(!is.na(temperature)) %>%
+  rename(y = temperature) %>%
+  custom_boxplot() +
+  labs(
+    y = "Temperature (°C)",
+    title = "B | Temperature",
+  ) +
+  scale_y_continuous(
+    limits = c(0, 35),
+    expand = c(0, 0)
+  )
+
+supp_environ_descriptive_pl <- rH_pl + temp_pl +
+  plot_layout(ncol = 2, nrow = 1, guides = "collect") &
+  theme(legend.position = "bottom")
+
+save_plot(
+  supp_environ_descriptive_pl,
+  "results/supp-environ-descriptives.png",
+  w = 16,
+  h = 8
+)
+```
+
+&nbsp;
+
+**Figure**: Coefficients of variation (standard deviation divided by mean).
+
+```{r supp-variation}
+recode_vars <- c(
+  "pt" = "Person-time",
+  "co2" = "CO2 concentration",
+  "aer" = "Air exchange rate",
+  "incidence" = "TB prevalence",
+  "P" = "Modelled transmission risk",
+  "outcome" = "Mtb concentration"
+)
+
+daily_df <- df %>%
+  group_by(year, date) %>%
+  filter(sum(!is.na(dna_copies)) == 2) %>%
+  summarise(
+    outcome = log1p((sum(dna_copies) / sum(sampling_time)))
+  ) %>%
+  ungroup() %>%
+  left_join(
+    df %>%
+      group_by(year, date) %>%
+      summarise(incidence = sum(diagnosed) / sum(registered))
+  ) %>%
+  left_join(
+    df %>%
+      group_by(year, date) %>%
+      filter(sum(!is.na(aer)) == 2) %>%
+      summarise(aer = mean(aer))
+  ) %>%
+  left_join(
+    pt_df %>%
+      rename(pt = y) %>%
+      group_by(year, date) %>%
+      filter(sum(!is.na(pt)) == 2) %>%
+      summarise(pt = mean(pt))
+  ) %>%
+  left_join(
+    daily_max_co2 %>%
+      group_by(year, date) %>%
+      filter(sum(!is.na(co2)) == 2) %>%
+      summarise(co2 = max(co2))
+  ) %>%
+  left_join(
+    well_riley %>%
+      group_by(year, date) %>%
+      filter(sum(!is.na(P)) == 2) %>%
+      summarise(P = 1 - prod(1 - P))
+  )
+
+cv_df <- daily_df %>%
+  mutate(outcome = expm1(outcome)) %>%
+  reshape2::melt(c("year", "date")) %>%
+  mutate(
+    variable = recode(variable, !!!recode_vars),
+    variable = factor(variable, levels = recode_vars)
+  ) %>%
+  group_by(year, variable) %>%
+  summarise(
+    mean = mean(value, na.rm = TRUE),
+    median = median(value, na.rm = TRUE),
+    sd = sd(value, na.rm = TRUE),
+    q25 = quantile(value, .25, na.rm = TRUE),
+    q75 = quantile(value, .75, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    cv = sd / mean,
+    cv2 = (q75 - q25) / median
+  )
+
+cv_pl <- cv_df %>%
+  ggplot(aes(x = year, fill = year, y = cv)) +
+  facet_wrap(~variable, scales = "free_x") +
+  geom_bar(
+    stat = "identity",
+    position = position_dodge(width = .75),
+    width = .66
+  ) +
+  scale_fill_manual(
+    values = wes_palette("Zissou1")[c(2, 4)]
+  ) +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = c(0, 0)
+  ) +
+  theme_custom() +
+  labs(y = "Coefficient of variation (SD / Mean)") +
+  theme(
+    strip.text.x = element_text(margin = margin(t = 12, b = 6)),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    legend.key.width = unit(0.25, "cm"),
+    legend.key.height = unit(0.3, "cm"),
+    axis.title.x = element_blank()
+  )
+
+save_plot(
+  cv_pl,
+  pdf_file = "results/supp-coef-of-variation.png",
+  w = 16, h = 10
+)
+```
+
+Here the values as a table:
+
+```{r supp-variation-tbl}
+cv_df %>%
+  dplyr::select(year, variable, cv2) %>%
+  spread(year, cv2) %>%
+  mutate(across(-variable, round_k, 2)) %>%
+  knitr::kable(align = "lrr")
+```
+
+&nbsp;
+
+In the following, we show the comparison of variables overall and by daytime. 
+For the overall comparison of daily values, person-time, TB prevalence, and Mtb concentration were aggregated using the sum,
+while environmental variables were aggregated using the mean of the morning and afternoon values;
+for each variable, days with only morning or afternoon values were excluded.
+In addition, CO2, temperature, and humidity are summarised using all values between 8am and 4pm. 
+
+&nbsp;
+
 ```{r supp-functions}
 summarise_iqr <- function(df, n_digits = 1) {
   df %>%
@@ -498,10 +699,34 @@ summarise_iqr <- function(df, n_digits = 1) {
 }
 ```
 
+&nbsp;
 
 **Table**: Mtb concentration in bioaerosols by study year (median and IQR).
 
 ```{r mol-supp}
+df %>%
+  filter(!is.na(dna_copies)) %>%
+  group_by(year, date) %>%
+  filter(n() == 2) %>%
+  mutate(
+    value = log1p(sum(dna_copies) / sum(sampling_time))
+  ) %>%
+  ungroup() %>%
+  dplyr::select(year, value) %>%
+  group_by(year) %>%
+  summarise_iqr() %>%
+  ungroup() %>%
+  dplyr::select(year, value) %>%
+  arrange(year) %>%
+  pivot_wider(names_from = c(year), values_from = value) %>%
+  knitr::kable(align = "lrr")
+```
+
+&nbsp;
+
+**Table**: Mtb concentration in bioaerosols by study year and daytime (median and IQR).
+
+```{r mol-supp-daytime}
 df %>%
   filter(!is.na(dna_copies)) %>%
   mutate(
@@ -517,14 +742,75 @@ df %>%
   knitr::kable(align = "lrrrr")
 ```
 
+&nbsp;
+
+**Table**: Modelled risk of transmission by study year (median and IQR).
+
+```{r mol-supp-risk}
+well_riley %>%
+  group_by(year, date) %>%
+  filter(sum(!is.na(P)) == 2) %>%
+  summarise(P = 1 - prod(1 - P)) %>%
+  ungroup() %>%
+  mutate(value = P * 100) %>%
+  dplyr::select(year, value) %>%
+  group_by(year) %>%
+  summarise_iqr(n_digits = 2) %>%
+  ungroup() %>%
+  dplyr::select(year, value) %>%
+  arrange(year) %>%
+  pivot_wider(names_from = c(year), values_from = value) %>%
+  knitr::kable(align = "lrr")
+```
+
+&nbsp;
+
+**Table**: Modelled risk of transmission by study year and daytime (median and IQR).
+
+```{r mol-supp-risk-daytime}
+well_riley %>%
+  mutate(value = P * 100) %>%
+  dplyr::select(year, daytime, value) %>%
+  group_by(year, daytime) %>%
+  summarise_iqr(n_digits = 2) %>%
+  ungroup() %>%
+  dplyr::select(year, daytime, value) %>%
+  arrange(year, desc(daytime)) %>%
+  pivot_wider(names_from = c(year, daytime), values_from = value) %>%
+  knitr::kable(align = "lrrrr")
+```
+
+&nbsp;
+
 **Table**: Environmental conditions by study year (median and IQR).
 
 ```{r environ-supp}
 df %>%
-  dplyr::select(year, daytime, aer, humidity, temperature) %>%
+  left_join(daily_max_co2) %>%
+  dplyr::select(year, date, co2, aer, humidity, temperature) %>%
+  reshape2::melt(c("year", "date")) %>%
+  group_by(year, date, variable) %>%
+  filter(sum(!is.na(value)) == 2) %>%
+  ungroup() %>%
+  group_by(year, variable) %>%
+  summarise_iqr(n_digits = 0) %>%
+  dplyr::select(year, variable, value) %>%
+  arrange(year) %>%
+  pivot_wider(names_from = c(year), values_from = value) %>%
+  knitr::kable(align = "lrr")
+```
+
+&nbsp;
+
+**Table**: Environmental conditions by study year and daytime (median and IQR).
+
+```{r environ-supp-daytime}
+df %>%
+  left_join(daily_max_co2) %>%
+  dplyr::select(year, daytime, co2, aer, humidity, temperature) %>%
   reshape2::melt(c("year", "daytime")) %>%
   group_by(year, daytime, variable) %>%
-  summarise_iqr() %>%
+  summarise_iqr(n_digits = 0) %>%
   dplyr::select(year, daytime, variable, value) %>%
   arrange(year, desc(daytime)) %>%
   pivot_wider(names_from = c(year, daytime), values_from = value) %>%
@@ -533,9 +819,28 @@ df %>%
 
 &nbsp;
 
-**Table**: Person-time in the clinic (hours) by study year (median and IQR).
+**Table**: Person-time in the clinic (hours) by study year (median and IQR). 
 
 ```{r tracking-supp}
+pt_df %>%
+  rename(value = y) %>%
+  group_by(year, date) %>%
+  filter(sum(!is.na(value)) == 2) %>%
+  summarise(value = sum(value)) %>%
+  ungroup() %>%
+  group_by(year) %>%
+  summarise_iqr(n_digits = 0) %>%
+  dplyr::select(year, value) %>%
+  arrange(year) %>%
+  pivot_wider(names_from = c(year), values_from = value) %>%
+  knitr::kable(align = "lrr")
+```
+
+&nbsp;
+
+**Table**: Person-time in the clinic (hours) by study year and daytime (median and IQR).
+
+```{r tracking-supp-daytime}
 pt_df %>%
   rename(value = y) %>%
   group_by(year, daytime) %>%
@@ -548,11 +853,31 @@ pt_df %>%
 
 &nbsp;
 
-**Table**: Number of registered and diagnosed TB patients by study year (median and IQR).
+**Table**: Prevalence (diagnosed/registered in %) and number of registered and diagnosed TB patients by study year (median and IQR).
 
 ```{r tb-visits-supp}
 df %>%
-  dplyr::select(year, daytime, registered, diagnosed) %>%
+  mutate(prevalence = diagnosed / registered * 100) %>%
+  dplyr::select(year, date, prevalence, registered, diagnosed) %>%
+  reshape2::melt(c("year", "date")) %>%
+  group_by(year, date, variable) %>%
+  summarise(value = sum(value)) %>%
+  ungroup() %>%
+  group_by(year, variable) %>%
+  summarise_iqr(n_digits = 0) %>%
+  dplyr::select(year, variable, value) %>%
+  pivot_wider(names_from = c(year), values_from = value) %>%
+  knitr::kable(align = "lrr")
+```
+
+&nbsp;
+
+**Table**: Prevalence (diagnosed/registered in %) and number of registered and diagnosed TB patients by study year and daytime (median and IQR).
+
+```{r tb-visits-supp-daytime}
+df %>%
+  mutate(prevalence = diagnosed / registered * 100) %>%
+  dplyr::select(year, daytime, prevalence, registered, diagnosed) %>%
   reshape2::melt(c("year", "daytime")) %>%
   group_by(year, daytime, variable) %>%
   summarise_iqr(n_digits = 0) %>%
@@ -623,12 +948,13 @@ clin %>%
 cor_pl <- df %>%
   mutate(log_dna_hr = log1p(dna_copies / sampling_time)) %>%
   left_join(pt_df, by = c("year", "date", "daytime")) %>%
+  left_join(daily_max_co2, , by = c("year", "date", "daytime")) %>%
   rename(person_time = y) %>%
   dplyr::select(
     year, daytime,
     log_dna_hr,
     person_time,
-    aer, humidity, temperature
+    co2, aer, humidity, temperature
   ) %>%
   ggpairs(
     columns = 3:ncol(.),
@@ -636,10 +962,13 @@ cor_pl <- df %>%
     columnLabels = c(
       "Conc. (log/h)",
       "Person-time (h)",
-      "AER (1/h)", "RH (%)", "Temperature (°C)"
+      "CO2 (ppm)",
+      "AER (1/h)",
+      "RH (%)",
+      "Temperature (°C)"
     ),
     upper = list(
-      continuous = wrap(
+      continuous = GGally::wrap(
         ggally_cor,
         use = "pairwise.complete.obs",
         size = 8 / cm(1),
