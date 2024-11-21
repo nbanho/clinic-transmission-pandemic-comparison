@@ -148,6 +148,30 @@ Interpretation:
 - Note that clinical data is always available and compared overall. 
 - Frequency of TB patient visits is known for both years, but not what type of patients are visiting (HIV status, MDR, smear/GeneXpert grading).
 
+&nbsp;
+
+**Table**: Number of study days with complete measurements by type of data, only considering days with at least one variable non-missing.
+
+```{r missingness-tbl}
+missing_df %>%
+  mutate(registered = is.na(registered)) %>%
+  dplyr::select(year, date, registered, dna_copies, humidity, pt) %>%
+  group_by(year, date) %>%
+  summarise_all(function(x) all(!x)) %>%
+  ungroup() %>%
+  group_by(year) %>%
+  summarise(across(c(-date), sum)) %>%
+  set_names(c(
+    "Year",
+    "Clinical data",
+    "Bio-aerosol sampling",
+    "Environmental data",
+    "Tracking data"
+  )) %>%
+  knitr::kable(align = "lrrrr")
+```
+
+&nbsp;
 
 ## Comparison of daily data
 
@@ -266,7 +290,7 @@ aer_pl <- df %>%
   custom_boxplot() +
   labs(
     y = "Air changes per hour",
-    title = "C | Air exchange rate",
+    title = "D | Air exchange rate",
   ) +
   scale_y_continuous(
     limits = c(0, 50),
@@ -280,7 +304,7 @@ inc_pl <- df %>%
   custom_boxplot() +
   labs(
     y = "Proportion of TB among registered patients",
-    title = "D | Prevalence of TB patients",
+    title = "B | Prevalence of TB patients",
   ) +
   scale_y_continuous(
     limits = c(0, .5),
@@ -338,7 +362,7 @@ mol_pl <- df %>%
 **Figure**: Comparison of Mtb bioaerosol concentration, clinical occupancy, prevalence of TB patients, and environmental conditions between 2019 and 2021.
 
 ```{r summary-plot, fig.height=7.9, fig.width=6.3}
-descriptive_pl <- track_pl + co2_pl + aer_pl + inc_pl + well_riley_pl + mol_pl +
+descriptive_pl <- track_pl + inc_pl + co2_pl + aer_pl + well_riley_pl + mol_pl +
   plot_layout(ncol = 2, nrow = 3, guides = "collect") &
   theme(legend.position = "bottom")
 
@@ -563,7 +587,7 @@ save_plot(
   supp_environ_descriptive_pl,
   "results/supp-environ-descriptives.png",
   w = 16,
-  h = 8
+  h = 12
 )
 ```
 
@@ -648,17 +672,17 @@ cv_pl <- cv_df %>%
     position = position_dodge(width = .75),
     width = .66
   ) +
-  geom_label(
+  geom_text(
     aes(label = round(cv, 2)),
     size = 8 / cm(1),
-    vjust = 1
+    vjust = -1
   ) +
   scale_fill_manual(
     values = wes_palette("Zissou1")[c(2, 4)]
   ) +
   scale_y_continuous(
     limits = c(0, NA),
-    expand = expansion(mult = c(0, 0.05))
+    expand = expansion(mult = c(0, 0.1))
   ) +
   theme_custom() +
   labs(y = "Coefficient of variation (SD / Mean)") +
@@ -674,7 +698,7 @@ cv_pl <- cv_df %>%
 save_plot(
   cv_pl,
   pdf_file = "results/supp-coef-of-variation.png",
-  w = 16, h = 10
+  w = 16, h = 16
 )
 ```
 
