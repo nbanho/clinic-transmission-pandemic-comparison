@@ -648,12 +648,17 @@ cv_pl <- cv_df %>%
     position = position_dodge(width = .75),
     width = .66
   ) +
+  geom_label(
+    aes(label = round(cv, 2)),
+    size = 8 / cm(1),
+    vjust = 1
+  ) +
   scale_fill_manual(
     values = wes_palette("Zissou1")[c(2, 4)]
   ) +
   scale_y_continuous(
     limits = c(0, NA),
-    expand = c(0, 0)
+    expand = expansion(mult = c(0, 0.05))
   ) +
   theme_custom() +
   labs(y = "Coefficient of variation (SD / Mean)") +
