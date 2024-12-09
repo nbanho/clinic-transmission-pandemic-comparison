@@ -97,16 +97,20 @@ missing_pl <- missing_df %>%
   ) %>%
   mutate(
     variable = case_when(
-      variable == "dna_copies" ~ "Outcome",
+      variable == "dna_copies" ~ "Bio-aerosols",
       variable == "humidity" ~ "Environmental",
       variable == "pt" ~ "Tracking"
     ),
     variable = factor(variable, levels = c(
-      "Outcome",
+      "Bio-aerosols",
       "Environmental",
       "Tracking"
     )),
-    daytime = factor(daytime, levels = c("Morning", "Afternoon"))
+    daytime = factor(daytime, levels = c("Morning", "Afternoon")),
+    missing = factor(
+      ifelse(missing, "Not measured", "Measured"),
+      levels = c("Measured", "Not measured")
+    )
   ) %>%
   arrange(date, daytime) %>%
   mutate(
@@ -118,26 +122,26 @@ missing_pl <- missing_df %>%
   ggplot(aes(
     y = date_time,
     x = variable,
-    fill = factor(missing, levels = c(TRUE, FALSE))
+    fill = missing
   )) +
-  geom_tile() +
+  geom_tile(alpha = .5) +
   facet_wrap(~year, scales = "free_y") +
-  labs(
-    x = NULL,
-    fill = "Missing"
-  ) +
-  scale_fill_manual(values = c("grey", "white")) +
+  scale_fill_manual(values = c("lightblue", "orange")) +
   theme_custom() +
   theme(
+    legend.title = element_blank(),
     legend.position = "bottom",
-    axis.title = element_blank()
+    legend.key.width = unit(1, "cm"),
+    legend.key.height = unit(1 / 3, "cm"),
+    axis.title = element_blank(),
+    strip.text = element_text(face = 2, margin = margin(b = 6))
   )
 
 save_plot(
   missing_pl,
   "results/missing-data.png",
-  w = 14,
-  h = 24
+  w = 16,
+  h = 22
 )
 ```
 
@@ -388,7 +392,7 @@ Interpretation:
 p_value_overall <- function(dat, fam = "gaussian") {
   my <- glm(y ~ year + daytime, data = dat, family = fam)
   pval <- summary(my)$coefficients["year2021", 4]
-  p_value_format(pval)
+  round(pval, 3)
 }
 
 pvals_overall <- data.frame(
