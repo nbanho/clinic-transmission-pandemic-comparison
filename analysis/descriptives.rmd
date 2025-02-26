@@ -192,11 +192,11 @@ p_value_format <- function(p_value) {
 custom_boxplot <- function(dat) {
   p_value_1 <- ggpubr::compare_means(
     y ~ year,
-    data = dplyr::filter(dat, daytime == "Morning"), method = "t.test"
+    data = dplyr::filter(dat, daytime == "Morning"), method = "wilcox.test"
   )$p.adj
   p_value_2 <- ggpubr::compare_means(
     y ~ year,
-    data = dplyr::filter(dat, daytime == "Afternoon"), method = "t.test"
+    data = dplyr::filter(dat, daytime == "Afternoon"), method = "wilcox.test"
   )$p.adj
   p_value <- c(p_value_1, p_value_2)
   p_value <- p_value_format(p_value)
@@ -294,7 +294,7 @@ aer_pl <- df %>%
   custom_boxplot() +
   labs(
     y = "Air changes per hour",
-    title = "D | Air exchange rate",
+    title = "B | Air exchange rate",
   ) +
   scale_y_continuous(
     limits = c(0, 50),
@@ -335,7 +335,7 @@ well_riley_pl <- well_riley %>%
   custom_boxplot() +
   labs(
     y = "Probability of infection (%)",
-    title = "E | Modelled transmission risk",
+    title = "C | Modelled transmission risk",
   ) +
   scale_y_continuous(
     limits = c(0, .05),
@@ -355,7 +355,7 @@ mol_pl <- df %>%
   custom_boxplot() +
   labs(
     y = expression("Log DNA copies per " * mu * "L per hour of sampling"),
-    title = "F | Mtb concentration in bioaerosols",
+    title = "D | Mtb concentration in bioaerosols",
   ) +
   scale_y_continuous(
     limits = c(0, 10),
@@ -363,28 +363,25 @@ mol_pl <- df %>%
   )
 ```
 
-**Figure**: Comparison of Mtb bioaerosol concentration, clinical occupancy, prevalence of TB patients, and environmental conditions between 2019 and 2021.
+**Figure**: Comparison of person-time in the clinic, ventilation conditions (air exchange rates), modelled risk of infection, and Mtb bioaerosol concentration between 2019 and 2021.
 
 ```{r summary-plot, fig.height=7.9, fig.width=6.3}
-descriptive_pl <- track_pl + inc_pl + co2_pl + aer_pl + well_riley_pl + mol_pl +
+descriptive_pl <- track_pl + aer_pl + well_riley_pl + mol_pl +
   plot_layout(ncol = 2, nrow = 3, guides = "collect") &
   theme(legend.position = "bottom")
 
 save_plot(
   descriptive_pl,
-  "results/descriptives.png",
+  pdf_file = "results/descriptives-revised.png",
   w = 16,
   h = 20
 )
+ggsave(
+  plot = descriptive_pl,
+  filename = "results/descriptives.tiff",
+  width = 16 / cm(1), height = 20 / cm(1)
+)
 ```
-
-Interpretation:
-
-- Bioaerosol concentration was similar.
-- Higher prevalence of TB patients among registered patients in 2019, which we would expect to reduce the outcome.
-- Person-time in 2021 was much lower, which should reduce the outcome, unless the person-time of TB patients was similar (which we don't know).
-- Air exchange rate was higher in 2021, suggesting better ventilation, which should reduce outcome.
-- Relative humidity was lower and temperature higher in 2021, which could impact outcome, but the influence is unclear.
 
 **Table**: Daytime-adjusted p-values from linear modeles to test for an overall difference in each variable between study periods.
 
@@ -553,6 +550,93 @@ save_plot(
 
 
 ## Supplementary results
+
+**Figure**: Sensitivity analysis for the modelled risk of Mtb transmission.
+
+```{r sensitivity-modelled-risk}
+# mean prevalence in 2019
+mean_prev_2019 <- df %>%
+  filter(year == 2019) %>%
+  group_by(daytime) %>%
+  summarise(I = mean(diagnosed)) %>%
+  ungroup()
+
+# modelled risk with equal (2019) prevalence
+wr_same_prev <- df %>%
+  dplyr::select(year, date, daytime, aer) %>%
+  left_join(mean_prev_2019, by = "daytime") %>%
+  mutate(
+    q = 2,
+    t = 1,
+    p = 0.5,
+    V = 174.075,
+    Q = aer * V,
+    P = 1 - exp(-I * p * q * t / Q)
+  )
+
+# plot equal prevalence risk
+wr_same_prev_pl <- wr_same_prev %>%
+  rename(y = P) %>%
+  custom_boxplot() +
+  labs(
+    y = "Probability of infection (%)",
+    title = "A | Same prevalence and time",
+  ) +
+  scale_y_continuous(
+    limits = c(0, .02),
+    expand = expansion(add = c(.001, 0)),
+    labels = function(x) x * 100
+  )
+
+# time in clinic ratio between 2021 and 2019
+exposure_time_ratio <- pt_df %>%
+  group_by(year, daytime) %>%
+  summarise(pt = mean(y, na.rm = TRUE)) %>%
+  ungroup() %>%
+  group_by(daytime) %>%
+  summarise(ptr = pt[year == "2021"] / pt[year == "2019"]) %>%
+  ungroup()
+
+# modelled risk assuming equal prevalence but change in in exposure time
+wr_diff_time <- df %>%
+  dplyr::select(year, date, daytime, aer) %>%
+  left_join(mean_prev_2019, by = "daytime") %>%
+  left_join(exposure_time_ratio, by = "daytime") %>%
+  mutate(
+    q = 2,
+    t = if_else(year == "2019", 1, ptr),
+    p = 0.5,
+    V = 174.075,
+    Q = aer * V,
+    P = 1 - exp(-I * p * q * t / Q)
+  )
+
+# plot different exposure time risk
+wr_diff_time_pl <- wr_diff_time %>%
+  rename(y = P) %>%
+  custom_boxplot() +
+  labs(
+    y = "Probability of infection (%)",
+    title = "B | Same prevalence but different time",
+  ) +
+  scale_y_continuous(
+    limits = c(0, .02),
+    expand = expansion(add = c(.001, 0)),
+    labels = function(x) x * 100
+  )
+
+# combine plots
+wr_supp_pl <- wr_same_prev_pl + wr_diff_time_pl +
+  plot_layout(ncol = 2, nrow = 1, guides = "collect") &
+  theme(legend.position = "bottom")
+
+save_plot(
+  wr_supp_pl,
+  pdf_file = "results/wells-riley-supp.png",
+  w = 16,
+  h = 10
+)
+```
 
 **Figure**: Comparison of temperature and relative humidity between 2019 and 2021.
 
@@ -806,6 +890,20 @@ well_riley %>%
 
 &nbsp;
 
+**Table**: Sensitivity analysis for the modelled risk of Mtb transmission.
+
+```{r sensitivity-modelled risk}
+bind_rows(
+  mutate(wr_same_prev, scenario = "A"),
+  mutate(wr_diff_time, scenario = "B")
+) %>%
+  mutate(value = P * 100) %>%
+  group_by(scenario, year, daytime) %>%
+  summarise_iqr(n_digits = 2)
+```
+
+&nbsp;
+
 **Table**: Modelled risk of transmission by study year and daytime (median and IQR).
 
 ```{r mol-supp-risk-daytime}
@@ -905,7 +1003,7 @@ df %>%
   summarise(value = sum(value)) %>%
   ungroup() %>%
   group_by(year, variable) %>%
-  summarise_iqr(n_digits = 0) %>%
+  summarise_iqr(n_digits = 1) %>%
   dplyr::select(year, variable, value) %>%
   pivot_wider(names_from = c(year), values_from = value) %>%
   knitr::kable(align = "lrr")
@@ -921,7 +1019,7 @@ df %>%
   dplyr::select(year, daytime, prevalence, registered, diagnosed) %>%
   reshape2::melt(c("year", "daytime")) %>%
   group_by(year, daytime, variable) %>%
-  summarise_iqr(n_digits = 0) %>%
+  summarise_iqr(n_digits = 1) %>%
   dplyr::select(year, daytime, variable, value) %>%
   pivot_wider(names_from = c(year, daytime), values_from = value) %>%
   knitr::kable(align = "lrrrr")

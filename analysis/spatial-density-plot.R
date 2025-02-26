@@ -201,3 +201,8 @@ save_plot(
   pdf_file = "results/spatial-density-plot.png",
   w = 16, h = 16
 )
+save_plot(
+  spatial_facet_pl,
+  pdf_file = "results/spatial-density-plot.tiff",
+  w = 16, h = 16
+)
