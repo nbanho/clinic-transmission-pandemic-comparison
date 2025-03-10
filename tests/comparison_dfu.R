@@ -42,7 +42,7 @@ dfu21 <- read_xlsx("data-raw/dfu-data-both-years.xlsx", sheet = "2023_first 3 ba
 rbind(dfu19, dfu19reworked, dfu21) %>% 
   filter(room == "Waiting room") %>%
   rename(`Sampling time` = time) %>%
-  ggplot(aes(x = year, y = log(dna_copies), fill = `Sampling time`)) + #
+  ggplot(aes(x = year, y = log1p(dna_copies), fill = `Sampling time`)) + #
   geom_boxplot(position = position_dodge(width = 1)) +
   labs(y = "Log DNA copies", title = "Waiting room") +
   theme(axis.title.x = element_blank())

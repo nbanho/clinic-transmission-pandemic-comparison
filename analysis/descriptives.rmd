@@ -13,6 +13,7 @@ knitr::opts_knit$set(root.dir = "..")
 library(tidyverse)
 library(lubridate)
 library(epiR)
+library(tidybayes)
 source("utils/plotting.r")
 source("utils/trans_risk.r")
 source("utils/tex.r")
@@ -192,11 +193,11 @@ p_value_format <- function(p_value) {
 custom_boxplot <- function(dat) {
   p_value_1 <- ggpubr::compare_means(
     y ~ year,
-    data = dplyr::filter(dat, daytime == "Morning"), method = "wilcox.test"
+    data = dplyr::filter(dat, daytime == "Morning"), method = "t.test"
   )$p.adj
   p_value_2 <- ggpubr::compare_means(
     y ~ year,
-    data = dplyr::filter(dat, daytime == "Afternoon"), method = "wilcox.test"
+    data = dplyr::filter(dat, daytime == "Afternoon"), method = "t.test"
   )$p.adj
   p_value <- c(p_value_1, p_value_2)
   p_value <- p_value_format(p_value)
@@ -212,15 +213,34 @@ custom_boxplot <- function(dat) {
       x = x2,
       y = y
     )) +
-    geom_boxplot(aes(fill = year)) +
-    geom_jitter(width = .1, height = 0, alpha = .5) +
+    stat_summary(
+      aes(color = year),
+      fun = mean,
+      geom = "point",
+      shape = 18,
+      size = 5
+    ) +
+    stat_summary(
+      aes(color = year),
+      fun.data = function(x) {
+        mean_val <- mean(x)
+        sd_val <- sd(x)
+        ymin <- max(mean_val - sd_val, 0)
+        ymax <- mean_val + sd_val
+        data.frame(y = mean_val, ymin = ymin, ymax = ymax)
+      },
+      geom = "errorbar",
+      width = 0.15,
+      size = 1.5
+    ) +
+    geom_jitter(width = .2, height = 0, alpha = .15) +
     ggsignif::geom_signif(
       comparisons = list(c(1, 2), c(3, 4)),
       map_signif_level = FALSE,
       textsize = 8 / cm(1),
       annotations = p_value,
     ) +
-    scale_fill_manual(
+    scale_color_manual(
       values = wes_palette("Zissou1")[c(2, 4)]
     ) +
     scale_x_discrete(
@@ -266,6 +286,8 @@ track_pl <- pt_df %>%
     limits = c(0, 350),
     expand = c(0, 0)
   )
+
+track_pl
 ```
 
 ```{r environ}
@@ -367,27 +389,27 @@ mol_pl <- df %>%
 
 ```{r summary-plot, fig.height=7.9, fig.width=6.3}
 descriptive_pl <- track_pl + aer_pl + well_riley_pl + mol_pl +
-  plot_layout(ncol = 2, nrow = 3, guides = "collect") &
+  plot_layout(ncol = 2, nrow = 2, guides = "collect") &
   theme(legend.position = "bottom")
 
 save_plot(
   descriptive_pl,
   pdf_file = "results/descriptives-revised.png",
   w = 16,
-  h = 20
+  h = 16
 )
 ggsave(
   plot = descriptive_pl,
-  filename = "results/descriptives.tiff",
-  width = 16 / cm(1), height = 20 / cm(1)
+  filename = "results/descriptives-revised.tiff",
+  width = 16 / cm(1), height = 16 / cm(1)
 )
 ```
 
 **Table**: Daytime-adjusted p-values from linear modeles to test for an overall difference in each variable between study periods.
 
 ```{r summary-pvalue}
-p_value_overall <- function(dat, fam = "gaussian") {
-  my <- glm(y ~ year + daytime, data = dat, family = fam)
+p_value_overall <- function(dat, method = "gaussian") {
+  my <- glm(y ~ year + daytime, data = dat, family = method)
   pval <- summary(my)$coefficients["year2021", 4]
   round(pval, 3)
 }
@@ -411,9 +433,9 @@ pvals_overall <- data.frame(
     p_value_overall(df %>% rename(y = aer)),
     p_value_overall(df %>% rename(y = temperature)),
     p_value_overall(df %>% rename(y = humidity)),
+    p_value_overall(df %>% mutate(y = diagnosed), method = "poisson"),
+    p_value_overall(df %>% mutate(y = registered), method = "poisson"),
     p_value_overall(df %>% mutate(y = diagnosed / registered)),
-    p_value_overall(df %>% mutate(y = diagnosed), fam = "poisson"),
-    p_value_overall(df %>% mutate(y = registered), fam = "poisson"),
     p_value_overall(well_riley %>% rename(y = P)),
     p_value_overall(df %>% mutate(y = log1p(dna_copies / sampling_time)))
   )
@@ -822,11 +844,21 @@ summarise_iqr <- function(df, n_digits = 1) {
     mutate_if(is.numeric, ~ format(round(.x, n_digits), nsmall = n_digits)) %>%
     mutate(value = paste0(median, " (", lower, ", ", upper, ")"))
 }
+summarise_msd <- function(df, n_digits = 1) {
+  df %>%
+    summarise(
+      mean = mean(value, na.rm = TRUE),
+      sd = sd(value, na.rm = TRUE)
+    ) %>%
+    ungroup() %>%
+    mutate_if(is.numeric, ~ format(round(.x, n_digits), nsmall = n_digits)) %>%
+    mutate(value = paste0(mean, " (", sd, ")"))
+}
 ```
 
 &nbsp;
 
-**Table**: Mtb concentration in bioaerosols by study year (median and IQR).
+**Table**: Mtb concentration in bioaerosols by study year (mean and SD).
 
 ```{r mol-supp}
 df %>%
@@ -839,7 +871,7 @@ df %>%
   ungroup() %>%
   dplyr::select(year, value) %>%
   group_by(year) %>%
-  summarise_iqr() %>%
+  summarise_msd() %>%
   ungroup() %>%
   dplyr::select(year, value) %>%
   arrange(year) %>%
@@ -849,7 +881,7 @@ df %>%
 
 &nbsp;
 
-**Table**: Mtb concentration in bioaerosols by study year and daytime (median and IQR).
+**Table**: Mtb concentration in bioaerosols by study year and daytime (mean and SD).
 
 ```{r mol-supp-daytime}
 df %>%
@@ -859,7 +891,7 @@ df %>%
   ) %>%
   dplyr::select(year, daytime, value) %>%
   group_by(year, daytime) %>%
-  summarise_iqr() %>%
+  summarise_msd() %>%
   ungroup() %>%
   dplyr::select(year, daytime, value) %>%
   arrange(year, desc(daytime)) %>%
@@ -869,7 +901,7 @@ df %>%
 
 &nbsp;
 
-**Table**: Modelled risk of transmission by study year (median and IQR).
+**Table**: Modelled risk of transmission by study year (mean and SD).
 
 ```{r mol-supp-risk}
 well_riley %>%
@@ -880,7 +912,7 @@ well_riley %>%
   mutate(value = P * 100) %>%
   dplyr::select(year, value) %>%
   group_by(year) %>%
-  summarise_iqr(n_digits = 2) %>%
+  summarise_msd(n_digits = 2) %>%
   ungroup() %>%
   dplyr::select(year, value) %>%
   arrange(year) %>%
@@ -890,7 +922,7 @@ well_riley %>%
 
 &nbsp;
 
-**Table**: Sensitivity analysis for the modelled risk of Mtb transmission.
+**Table**: Sensitivity analysis for the modelled risk of Mtb transmission (mean and SD).
 
 ```{r sensitivity-modelled risk}
 bind_rows(
@@ -899,19 +931,19 @@ bind_rows(
 ) %>%
   mutate(value = P * 100) %>%
   group_by(scenario, year, daytime) %>%
-  summarise_iqr(n_digits = 2)
+  summarise_msd(n_digits = 2)
 ```
 
 &nbsp;
 
-**Table**: Modelled risk of transmission by study year and daytime (median and IQR).
+**Table**: Modelled risk of transmission by study year and daytime (mean and SD).
 
 ```{r mol-supp-risk-daytime}
 well_riley %>%
   mutate(value = P * 100) %>%
   dplyr::select(year, daytime, value) %>%
   group_by(year, daytime) %>%
-  summarise_iqr(n_digits = 2) %>%
+  summarise_msd(n_digits = 2) %>%
   ungroup() %>%
   dplyr::select(year, daytime, value) %>%
   arrange(year, desc(daytime)) %>%
@@ -921,7 +953,7 @@ well_riley %>%
 
 &nbsp;
 
-**Table**: Environmental conditions by study year (median and IQR).
+**Table**: Environmental conditions by study year (mean and SD).
 
 ```{r environ-supp}
 df %>%
@@ -932,7 +964,7 @@ df %>%
   filter(sum(!is.na(value)) == 2) %>%
   ungroup() %>%
   group_by(year, variable) %>%
-  summarise_iqr(n_digits = 0) %>%
+  summarise_msd(n_digits = 1) %>%
   dplyr::select(year, variable, value) %>%
   arrange(year) %>%
   pivot_wider(names_from = c(year), values_from = value) %>%
@@ -941,7 +973,7 @@ df %>%
 
 &nbsp;
 
-**Table**: Environmental conditions by study year and daytime (median and IQR).
+**Table**: Environmental conditions by study year and daytime (mean and SD).
 
 ```{r environ-supp-daytime}
 df %>%
@@ -949,7 +981,7 @@ df %>%
   dplyr::select(year, daytime, co2, aer, humidity, temperature) %>%
   reshape2::melt(c("year", "daytime")) %>%
   group_by(year, daytime, variable) %>%
-  summarise_iqr(n_digits = 0) %>%
+  summarise_msd(n_digits = 1) %>%
   dplyr::select(year, daytime, variable, value) %>%
   arrange(year, desc(daytime)) %>%
   pivot_wider(names_from = c(year, daytime), values_from = value) %>%
@@ -958,7 +990,7 @@ df %>%
 
 &nbsp;
 
-**Table**: Person-time in the clinic (hours) by study year (median and IQR). 
+**Table**: Person-time in the clinic (hours) by study year (mean and SD). 
 
 ```{r tracking-supp}
 pt_df %>%
@@ -968,7 +1000,7 @@ pt_df %>%
   summarise(value = sum(value)) %>%
   ungroup() %>%
   group_by(year) %>%
-  summarise_iqr(n_digits = 0) %>%
+  summarise_msd(n_digits = 0) %>%
   dplyr::select(year, value) %>%
   arrange(year) %>%
   pivot_wider(names_from = c(year), values_from = value) %>%
@@ -977,13 +1009,13 @@ pt_df %>%
 
 &nbsp;
 
-**Table**: Person-time in the clinic (hours) by study year and daytime (median and IQR).
+**Table**: Person-time in the clinic (hours) by study year and daytime (mean and SD).
 
 ```{r tracking-supp-daytime}
 pt_df %>%
   rename(value = y) %>%
   group_by(year, daytime) %>%
-  summarise_iqr(n_digits = 0) %>%
+  summarise_msd(n_digits = 0) %>%
   dplyr::select(year, daytime, value) %>%
   arrange(year, desc(daytime)) %>%
   pivot_wider(names_from = c(year, daytime), values_from = value) %>%
@@ -1003,7 +1035,7 @@ df %>%
   summarise(value = sum(value)) %>%
   ungroup() %>%
   group_by(year, variable) %>%
-  summarise_iqr(n_digits = 1) %>%
+  summarise_msd(n_digits = 1) %>%
   dplyr::select(year, variable, value) %>%
   pivot_wider(names_from = c(year), values_from = value) %>%
   knitr::kable(align = "lrr")
@@ -1011,7 +1043,7 @@ df %>%
 
 &nbsp;
 
-**Table**: Prevalence (diagnosed/registered in %) and number of registered and diagnosed TB patients by study year and daytime (median and IQR).
+**Table**: Prevalence (diagnosed/registered in %) and number of registered and diagnosed TB patients by study year and daytime (mean and SD).
 
 ```{r tb-visits-supp-daytime}
 df %>%
@@ -1019,7 +1051,7 @@ df %>%
   dplyr::select(year, daytime, prevalence, registered, diagnosed) %>%
   reshape2::melt(c("year", "daytime")) %>%
   group_by(year, daytime, variable) %>%
-  summarise_iqr(n_digits = 1) %>%
+  summarise_msd(n_digits = 1) %>%
   dplyr::select(year, daytime, variable, value) %>%
   pivot_wider(names_from = c(year, daytime), values_from = value) %>%
   knitr::kable(align = "lrrrr")
