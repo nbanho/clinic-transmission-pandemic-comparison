@@ -708,9 +708,7 @@ save_plot(
 ```{r supp-variation}
 recode_vars <- c(
   "pt" = "Person-time",
-  "co2" = "CO2 concentration",
   "aer" = "Air exchange rate",
-  "incidence" = "TB prevalence",
   "P" = "Modelled transmission risk",
   "outcome" = "Mtb concentration"
 )
@@ -725,11 +723,6 @@ daily_df <- df %>%
   left_join(
     df %>%
       group_by(year, date) %>%
-      summarise(incidence = sum(diagnosed) / sum(registered))
-  ) %>%
-  left_join(
-    df %>%
-      group_by(year, date) %>%
       filter(sum(!is.na(aer)) == 2) %>%
       summarise(aer = mean(aer))
   ) %>%
@@ -739,12 +732,6 @@ daily_df <- df %>%
       group_by(year, date) %>%
       filter(sum(!is.na(pt)) == 2) %>%
       summarise(pt = mean(pt))
-  ) %>%
-  left_join(
-    daily_max_co2 %>%
-      group_by(year, date) %>%
-      filter(sum(!is.na(co2)) == 2) %>%
-      summarise(co2 = max(co2))
   ) %>%
   left_join(
     well_riley %>%
