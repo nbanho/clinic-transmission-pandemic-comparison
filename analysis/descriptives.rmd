@@ -14,6 +14,7 @@ library(tidyverse)
 library(lubridate)
 library(epiR)
 library(tidybayes)
+library(betareg)
 source("utils/plotting.r")
 source("utils/trans_risk.r")
 source("utils/tex.r")
@@ -32,7 +33,10 @@ source("utils/tex.r")
 
 ```{r overview, include=FALSE}
 df <- readRDS("data-clean/combined-data-wr.rds") %>%
-  mutate(year = factor(year, levels = c(2019, 2021)))
+  mutate(
+    year = factor(year, levels = c(2019, 2021)),
+    daytime = factor(daytime, levels = c("Morning", "Afternoon"))
+  )
 
 clin <- read_csv("data-clean/clinical-data.csv") %>%
   mutate(year = factor(year, levels = c(2019, 2021)))
@@ -185,43 +189,40 @@ p_value_format <- function(p_value) {
   ifelse(
     p_value < .001, "p < 0.001",
     ifelse(p_value < 0.01, paste("p =", round(p_value, 3)),
-      paste("p =", round(p_value, 2))
+      paste("p =", round(p_value, 3))
     )
   )
 }
 
-custom_boxplot <- function(dat) {
-  p_value_1 <- ggpubr::compare_means(
-    y ~ year,
-    data = dplyr::filter(dat, daytime == "Morning"), method = "t.test"
-  )$p.adj
-  p_value_2 <- ggpubr::compare_means(
-    y ~ year,
-    data = dplyr::filter(dat, daytime == "Afternoon"), method = "t.test"
-  )$p.adj
-  p_value <- c(p_value_1, p_value_2)
-  p_value <- p_value_format(p_value)
+get_p_value <- function(dat, method = "gaussian") {
+  if (method == "beta") {
+    my <- betareg::betareg(y ~ year + daytime, data = dat, link = "logit")
+    pval <- summary(my)$coefficients$mu["year2021", 4]
+    if (is.null(pval)) {
+      pval <- summary(my)$coefficients$mean["year2021", 4]
+    }
+  } else {
+    my <- glm(y ~ year + daytime, data = dat, family = method)
+    pval <- summary(my)$coefficients["year2021", 4]
+  }
+  return(pval)
+}
+
+custom_boxplot <- function(dat, p_value = "") {
   dat %>%
-    mutate(
-      x2 = interaction(year, daytime),
-      x2 = factor(x2, levels = c(
-        "2019.Morning", "2021.Morning",
-        "2019.Afternoon", "2021.Afternoon"
-      ))
-    ) %>%
     ggplot(aes(
-      x = x2,
-      y = y
+      x = year,
+      y = y,
+      color = daytime
     )) +
     stat_summary(
-      aes(color = year),
       fun = mean,
       geom = "point",
       shape = 18,
-      size = 5
+      size = 5,
+      position = position_dodge(width = .6)
     ) +
     stat_summary(
-      aes(color = year),
       fun.data = function(x) {
         mean_val <- mean(x)
         sd_val <- sd(x)
@@ -229,28 +230,30 @@ custom_boxplot <- function(dat) {
         ymax <- mean_val + sd_val
         data.frame(y = mean_val, ymin = ymin, ymax = ymax)
       },
+      position = position_dodge(width = .6),
       geom = "errorbar",
       width = 0.15,
       size = 1.5
     ) +
-    geom_jitter(width = .2, height = 0, alpha = .15) +
+    geom_jitter(
+      alpha = .15,
+      position = position_jitterdodge(jitter.width = .3, dodge.width = .6)
+    ) +
     ggsignif::geom_signif(
-      comparisons = list(c(1, 2), c(3, 4)),
+      comparisons = list(c(1, 2)),
       map_signif_level = FALSE,
       textsize = 8 / cm(1),
-      annotations = p_value,
+      annotations = p_value_format(p_value),
+      color = "black"
     ) +
     scale_color_manual(
       values = wes_palette("Zissou1")[c(2, 4)]
     ) +
-    scale_x_discrete(
-      labels = c("Morning", "Morning", "Afternoon", "Afternoon"),
-    ) +
     theme_custom() +
     theme(
       axis.title.x = element_blank(),
-      legend.position = "bottom",
-      legend.title = element_blank()
+      plot.title.position = "plot",
+      plot.title = element_text(margin = margin(b = 12))
     )
 }
 ```
@@ -276,8 +279,9 @@ pt_df <- df %>%
   ) %>%
   ungroup()
 
+# plot
 track_pl <- pt_df %>%
-  custom_boxplot() +
+  custom_boxplot(get_p_value(.)) +
   labs(
     y = "Person-time (hours)",
     title = "A | Person-time in clinic",
@@ -313,7 +317,7 @@ co2_pl <- daily_max_co2 %>%
 aer_pl <- df %>%
   filter(!is.na(aer)) %>%
   rename(y = aer) %>%
-  custom_boxplot() +
+  custom_boxplot(get_p_value(.)) +
   labs(
     y = "Air changes per hour",
     title = "B | Air exchange rate",
@@ -322,21 +326,8 @@ aer_pl <- df %>%
     limits = c(0, 50),
     expand = c(0, 0)
   )
-```
 
-```{r tb-visits}
-inc_pl <- df %>%
-  mutate(y = diagnosed / registered) %>%
-  custom_boxplot() +
-  labs(
-    y = "Proportion of TB among registered patients",
-    title = "B | Prevalence of TB patients",
-  ) +
-  scale_y_continuous(
-    limits = c(0, .5),
-    expand = expansion(add = c(.02, 0)),
-    labels = function(x) x * 100
-  )
+aer_pl
 ```
 
 ```{r modelled-risk}
@@ -354,10 +345,10 @@ well_riley <- df %>%
 
 well_riley_pl <- well_riley %>%
   rename(y = P) %>%
-  custom_boxplot() +
+  custom_boxplot(get_p_value(., method = "beta")) +
   labs(
     y = "Probability of infection (%)",
-    title = "C | Modelled transmission risk",
+    title = "D | Modelled transmission risk",
   ) +
   scale_y_continuous(
     limits = c(0, .05),
@@ -366,6 +357,25 @@ well_riley_pl <- well_riley %>%
   )
 
 well_riley_pl
+
+# odds ratio for 2021
+risk_mod <- betareg::betareg(
+  P ~ year + daytime,
+  data = well_riley,
+  link = "logit"
+)
+
+risk_ci <- c(
+  exp(coef(risk_mod)["year2021"]),
+  exp(confint(risk_mod)["year2021", ])
+)
+
+sprintf(
+  "Modelled transmission risk: Odds ratio %s (95%%-CI %s, %s)",
+  round(risk_ci[1], 2),
+  round(risk_ci[2], 2),
+  round(risk_ci[3], 2)
+)
 ```
 
 ```{r molecular}
@@ -374,23 +384,25 @@ mol_pl <- df %>%
   mutate(
     y = log1p(dna_copies / sampling_time)
   ) %>%
-  custom_boxplot() +
+  custom_boxplot(get_p_value(.)) +
   labs(
     y = expression("Log DNA copies per " * mu * "L per hour of sampling"),
-    title = "D | Mtb concentration in bioaerosols",
+    title = "C | Mtb concentration in bioaerosols",
   ) +
   scale_y_continuous(
     limits = c(0, 10),
     expand = expansion(add = c(0.5, 0))
   )
+
+mol_pl
 ```
 
 **Figure**: Comparison of person-time in the clinic, ventilation conditions (air exchange rates), modelled risk of infection, and Mtb bioaerosol concentration between 2019 and 2021.
 
 ```{r summary-plot, fig.height=7.9, fig.width=6.3}
-descriptive_pl <- track_pl + aer_pl + well_riley_pl + mol_pl +
-  plot_layout(ncol = 2, nrow = 2, guides = "collect") &
-  theme(legend.position = "bottom")
+descriptive_pl <- track_pl + aer_pl + mol_pl + well_riley_pl +
+  plot_layout(ncol = 2, guides = "collect") &
+  theme(legend.position = "bottom", legend.title = element_blank())
 
 save_plot(
   descriptive_pl,
@@ -408,12 +420,6 @@ ggsave(
 **Table**: Daytime-adjusted p-values from linear modeles to test for an overall difference in each variable between study periods.
 
 ```{r summary-pvalue}
-p_value_overall <- function(dat, method = "gaussian") {
-  my <- glm(y ~ year + daytime, data = dat, family = method)
-  pval <- summary(my)$coefficients["year2021", 4]
-  round(pval, 3)
-}
-
 pvals_overall <- data.frame(
   variable = c(
     "Person-time in clinic",
@@ -428,16 +434,16 @@ pvals_overall <- data.frame(
     "Mtb concentration in bioaerosols"
   ),
   pvalue = c(
-    p_value_overall(pt_df),
-    p_value_overall(daily_max_co2 %>% rename(y = co2)),
-    p_value_overall(df %>% rename(y = aer)),
-    p_value_overall(df %>% rename(y = temperature)),
-    p_value_overall(df %>% rename(y = humidity)),
-    p_value_overall(df %>% mutate(y = diagnosed), method = "poisson"),
-    p_value_overall(df %>% mutate(y = registered), method = "poisson"),
-    p_value_overall(df %>% mutate(y = diagnosed / registered)),
-    p_value_overall(well_riley %>% rename(y = P)),
-    p_value_overall(df %>% mutate(y = log1p(dna_copies / sampling_time)))
+    get_p_value(pt_df),
+    get_p_value(daily_max_co2 %>% rename(y = co2)),
+    get_p_value(df %>% rename(y = aer)),
+    get_p_value(df %>% rename(y = temperature)),
+    get_p_value(df %>% rename(y = humidity)),
+    get_p_value(df %>% mutate(y = diagnosed), method = "poisson"),
+    get_p_value(df %>% mutate(y = registered), method = "poisson"),
+    get_p_value(df %>% mutate(y = diagnosed / registered), method = "beta"),
+    get_p_value(well_riley %>% rename(y = P), method = "beta"),
+    get_p_value(df %>% mutate(y = log1p(dna_copies / sampling_time)))
   )
 )
 
@@ -599,13 +605,13 @@ wr_same_prev <- df %>%
 # plot equal prevalence risk
 wr_same_prev_pl <- wr_same_prev %>%
   rename(y = P) %>%
-  custom_boxplot() +
+  custom_boxplot(get_p_value(., method = "beta")) +
   labs(
     y = "Probability of infection (%)",
     title = "A | Same prevalence and time",
   ) +
   scale_y_continuous(
-    limits = c(0, .02),
+    limits = c(0, .05),
     expand = expansion(add = c(.001, 0)),
     labels = function(x) x * 100
   )
@@ -636,13 +642,13 @@ wr_diff_time <- df %>%
 # plot different exposure time risk
 wr_diff_time_pl <- wr_diff_time %>%
   rename(y = P) %>%
-  custom_boxplot() +
+  custom_boxplot(get_p_value(., method = "beta")) +
   labs(
     y = "Probability of infection (%)",
     title = "B | Same prevalence but different time",
   ) +
   scale_y_continuous(
-    limits = c(0, .02),
+    limits = c(0, .05),
     expand = expansion(add = c(.001, 0)),
     labels = function(x) x * 100
   )
@@ -691,7 +697,7 @@ temp_pl <- df %>%
 
 supp_environ_descriptive_pl <- rH_pl + temp_pl +
   plot_layout(ncol = 2, nrow = 1, guides = "collect") &
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom", legend.title = element_blank())
 
 save_plot(
   supp_environ_descriptive_pl,
@@ -1015,12 +1021,15 @@ pt_df %>%
 
 ```{r tb-visits-supp}
 df %>%
-  mutate(prevalence = diagnosed / registered * 100) %>%
-  dplyr::select(year, date, prevalence, registered, diagnosed) %>%
-  reshape2::melt(c("year", "date")) %>%
-  group_by(year, date, variable) %>%
-  summarise(value = sum(value)) %>%
+  dplyr::select(year, date, registered, diagnosed) %>%
+  group_by(year, date) %>%
+  summarise(
+    registered = sum(registered),
+    diagnosed = sum(diagnosed)
+  ) %>%
   ungroup() %>%
+  mutate(prevalence = diagnosed / registered * 100) %>%
+  reshape2::melt(c("year", "date")) %>%
   group_by(year, variable) %>%
   summarise_msd(n_digits = 1) %>%
   dplyr::select(year, variable, value) %>%
